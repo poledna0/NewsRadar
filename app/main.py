@@ -19,7 +19,7 @@ from app.config import ROOT_DIR, get_settings
 from app.database import SessionLocal, engine, ensure_schema, get_db
 from app.models import Article, ProcessingRun, Source, Topic
 from app.schemas import ArticleListOut, ArticleOut, SourceOut, TopicCreate, TopicOut, TranslationOut, TranslationRequest
-from app.services.pipeline import collect_news, sync_topics
+from app.services.pipeline import collect_news, process_pending_articles, sync_topics
 from app.services.ollama import translate_to_pt_br
 from app.services.cloudflare_access import verify_access_token
 
@@ -39,6 +39,15 @@ async def lifespan(_: FastAPI):
         "interval",
         minutes=get_settings().collection_interval_minutes,
         id="newsradar_collection",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        process_pending_articles,
+        "interval",
+        minutes=5,
+        id="pending_ai_retry",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
@@ -289,7 +298,12 @@ def stats(session: Session = Depends(get_db)):
         "pending_ai": session.scalar(select(func.count(Article.id)).where(Article.processing_status == "pending_ai")) or 0,
         "sources": session.scalar(select(func.count(Source.id)).where(Source.enabled.is_(True))) or 0,
         "topics": session.scalar(select(func.count(Topic.id)).where(Topic.enabled.is_(True))) or 0,
-        "last_collection": session.scalar(select(ProcessingRun.finished_at).order_by(ProcessingRun.started_at.desc()).limit(1)),
+        "last_collection": session.scalar(
+            select(ProcessingRun.finished_at)
+            .where(ProcessingRun.status.not_in(["ai_processing", "ai_completed", "ai_failed"]))
+            .order_by(ProcessingRun.started_at.desc())
+            .limit(1)
+        ),
     }
 
 

@@ -153,14 +153,14 @@ O resumo é uma segunda chamada ao modelo, separada da classificação, e solici
 
 ## Pipeline
 
-1. O worker agenda ciclos a cada 30 minutos (configurável) e pode coletar uma vez ao iniciar.
+1. O worker agenda coletas a cada 30 minutos (configurável) e tenta drenar pendências de IA em lotes menores a cada 5 minutos.
 2. Cada tema gera consultas limitadas nas categorias `news` e `science` do SearXNG; os feeds são consultados em seguida.
 3. URLs HTTP(S) são normalizadas e verificadas contra destinos locais/privados antes de requisições de artigo. URLs canônicas existentes são ignoradas.
 4. Títulos recentes são comparados com similaridade convencional. Manchetes semelhantes são agrupadas no registro existente, que mantém links das fontes relacionadas.
 5. Trafilatura tenta extrair título, autor, data, descrição, imagem e conteúdo principal, respeitando robots.txt. Metadados da busca/RSS são mantidos se a extração falhar.
 6. Artigos novos são salvos no SQLite antes da IA. A classificação diferencia notícia jornalística de paper/preprint; feeds de fontes primárias informam esse tipo como sugestão. Classificação e resumo são chamadas separadas; erros deixam o artigo pendente.
 
-O worker limita cada ciclo; um único feed, artigo ou serviço externo com falha não encerra o ciclo inteiro. Não há migrações automáticas para versões antigas do schema nesta primeira versão; faça backup de `data/` antes de atualizações que alterem modelos.
+O worker limita artigos por tema, consulta e feed; uma única fonte com erro não encerra o ciclo. O startup faz migrações SQLite aditivas para novas colunas, mas não remove colunas antigas nem oferece rollback automático; mantenha backup de `data/` antes de atualizar.
 
 ## Mapa do código
 
@@ -173,7 +173,6 @@ O worker limita cada ciclo; um único feed, artigo ou serviço externo com falha
 - `app/services/extractor.py`: consulta robots.txt e extrai conteúdo/metadados com Trafilatura; falhas resultam em metadados de descoberta, não em perda do artigo.
 - `app/services/deduplicator.py`: canonicalização de URLs e comparação convencional de títulos, sem chamada de IA.
 - `app/services/ollama.py`: prompts e chamadas separadas de classificação, resumo e consolidação de cobertura multi-fonte.
-- `app/services/cloudflare_access.py`: validação opcional do JWT de Access com JWKS, audiência, emissor e validade.
 - `app/services/pipeline.py`: coordena uma execução, persiste resultados antes da IA e deixa itens não processados como `pending_ai`.
 - `app/templates/` e `app/static/`: HTML Jinja com escape automático, estilos e interações leves em JavaScript.
 - `tests/`: testes de URL/SSRF, serviços simulados, persistência, tradução e endpoints.

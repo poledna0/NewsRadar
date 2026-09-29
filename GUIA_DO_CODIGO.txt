@@ -41,7 +41,7 @@ Antes de gravar um artigo, o pipeline normaliza URL, descarta URLs canonicas exi
 
 services/extractor.py consulta robots.txt e usa Trafilatura para extrair texto e metadados. Se o site recusar acesso, o artigo continua sendo guardado com titulo, descricao, fonte e URL obtidos do RSS ou da busca. Os erros sao isolados por artigo.
 
-Artigos sao persistidos antes da IA com estado pending_ai. services/ollama.py executa classificacao e resumo em chamadas separadas. Papers/preprints de feeds marcados como pesquisa continuam classificados como research; uma reportagem que fala de um estudo deve ser news. Uma falha no Ollama conserva o conteudo e permite nova tentativa em coleta futura.
+Artigos sao persistidos antes da IA com estado pending_ai. services/ollama.py executa classificacao e resumo em chamadas separadas. Papers/preprints de feeds marcados como pesquisa continuam classificados como research; uma reportagem que fala de um estudo deve ser news. Se Ollama falhar, o artigo continua pendente; um job separado tenta processar ate 50 por vez a cada 5 minutos sem concorrer com a coleta.
 
 3. TRADUCAO E TEMAS
 -------------------

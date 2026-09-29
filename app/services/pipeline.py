@@ -205,6 +205,40 @@ async def _process_pending(session: Session, topic_by_name: dict[str, Topic], li
     return processed
 
 
+async def process_pending_articles(limit: int = 50) -> dict:
+    """Retry a small AI batch without overlapping collection or another Ollama call."""
+    if _collection_lock.locked():
+        return {"status": "busy", "processed": 0}
+    async with _collection_lock:
+        session = SessionLocal()
+        run = ProcessingRun(status="ai_processing")
+        session.add(run)
+        session.commit()
+        try:
+            topics = sync_topics(session)
+            topic_by_name = {topic.name: topic for topic in topics}
+            processed = await _process_pending(session, topic_by_name, limit=limit)
+            run.new_count = processed
+            run.status = "ai_completed"
+            run.details = json.dumps({"ai_processed": processed})
+            logger.info("Pending AI batch finished: %s articles processed", processed)
+        except Exception as error:
+            session.rollback()
+            run = session.get(ProcessingRun, run.id)
+            if run:
+                run.status = "ai_failed"
+                run.error_count = 1
+                run.details = str(error)
+            logger.exception("Pending AI batch failed")
+        finally:
+            run = session.get(ProcessingRun, run.id)
+            if run:
+                run.finished_at = utc_now()
+                session.commit()
+            session.close()
+        return {"status": run.status if run else "failed", "processed": run.new_count if run else 0}
+
+
 async def collect_news() -> dict:
     if _collection_lock.locked():
         return {"status": "already_running"}

@@ -41,7 +41,7 @@ async def extract_article(url: str) -> dict:
             response = await get_public_response(client, url)
         downloaded = response.text
         content = trafilatura.extract(downloaded, url=url, include_comments=False, include_tables=False)
-        metadata = extract_metadata(downloaded, url=url)
+        metadata = extract_metadata(downloaded, default_url=url)
         return {
             "title": metadata.title if metadata else None,
             "author": metadata.author if metadata else None,

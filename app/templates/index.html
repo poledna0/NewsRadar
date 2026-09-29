@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>NewsRadar | Últimas notícias</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="NewsRadar início">
+      <span class="brand-mark" aria-hidden="true">N</span>
+      <span>News<span class="brand-light">Radar</span></span>
+    </a>
+    <div class="topbar-meta">
+      <span class="live-indicator"><i></i> Radar ativo</span>
+      <span class="topbar-count">{{ total_articles }} artigos</span>
+      <button class="collect-button" id="collect-button" type="button">↻ <span>Coletar agora</span></button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="page-heading">
+      <div>
+        <p class="eyebrow">SEU PAINEL DE INFORMAÇÃO</p>
+        <h1>{% if view == 'events' %}Em destaque{% else %}Últimas notícias{% endif %}</h1>
+        <p class="heading-note">Sinais relevantes, reunidos de fontes independentes.</p>
+      </div>
+      <div class="heading-status">
+        <span class="status-label">IA pendente</span>
+        <strong>{{ pending_ai }}</strong>
+      </div>
+    </section>
+
+    <nav class="topic-nav" aria-label="Filtrar por tema">
+      <a class="topic-link {% if not selected_topic %}active{% endif %}" href="/?view={{ view }}">Todas</a>
+      {% for topic in topics %}
+        <a class="topic-link {% if selected_topic == topic.name %}active{% endif %}" href="/?topic={{ topic.name|urlencode }}&view={{ view }}">{{ topic.name }}</a>
+      {% endfor %}
+      <span class="nav-spacer"></span>
+      <a class="view-link {% if view == 'latest' %}active{% endif %}" href="/?view=latest">Últimas</a>
+      <a class="view-link {% if view == 'events' %}active{% endif %}" href="/?view=events">Múltiplas fontes</a>
+    </nav>
+
+    <form class="filter-bar" method="get" action="/">
+      <input type="hidden" name="view" value="{{ view }}">
+      {% if selected_topic %}<input type="hidden" name="topic" value="{{ selected_topic }}">{% endif %}
+      <label class="search-box">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" name="search" value="{{ search }}" placeholder="Buscar notícias" aria-label="Buscar notícias">
+      </label>
+      <label class="filter-control">
+        <span>Período</span>
+        <select name="hours">
+          <option value="">Qualquer data</option>
+          <option value="6" {% if selected_hours == 6 %}selected{% endif %}>Últimas 6h</option>
+          <option value="24" {% if selected_hours == 24 %}selected{% endif %}>Últimas 24h</option>
+        </select>
+      </label>
+      <label class="filter-control source-control">
+        <span>Fonte</span>
+        <select name="source">
+          <option value="">Todas as fontes</option>
+          {% for domain in sources %}
+            <option value="{{ domain }}" {% if selected_source == domain %}selected{% endif %}>{{ domain }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="filter-control sort-control">
+        <span>Ordenar</span>
+        <select name="sort">
+          <option value="date" {% if sort == 'date' %}selected{% endif %}>Mais recentes</option>
+          <option value="relevance" {% if sort == 'relevance' %}selected{% endif %}>Mais relevantes</option>
+        </select>
+      </label>
+      <button class="apply-button" type="submit">Filtrar</button>
+    </form>
+
+    {% if view == 'latest' and highlights %}
+    <section class="highlights-section" aria-labelledby="highlights-heading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">RADAR / SINAL FORTE</p>
+          <h2 id="highlights-heading">Mais importantes</h2>
+        </div>
+        <span class="section-count">{{ highlights|length }} em evidência</span>
+      </div>
+      <div class="highlights-grid">
+        {% for article in highlights %}
+        <article class="highlight-item">
+          <div class="article-meta">
+            <span class="category-tag">{{ article.category or 'Em análise' }}</span>
+            <span class="score"><b>{{ article.relevance_score }}</b><small> / 100</small></span>
+          </div>
+          <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
+          <p class="highlight-summary">{{ article.summary or article.description or 'Resumo aguardando processamento.' }}</p>
+          <div class="article-footer">
+            <span>{{ article.source_name or article.source_domain }}</span>
+            <time>{% if article.published_at %}{{ article.published_at.strftime('%d/%m · %H:%M') }}{% else %}{{ article.discovered_at.strftime('%d/%m · %H:%M') }}{% endif %}</time>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="news-section" aria-labelledby="news-heading">
+      <div class="section-heading news-heading">
+        <div>
+          <p class="eyebrow">{% if view == 'events' %}COBERTURA CRUZADA{% else %}FLUXO RECENTE{% endif %}</p>
+          <h2 id="news-heading">{% if view == 'events' %}Acontecimentos em várias fontes{% else %}Últimas notícias{% endif %}</h2>
+        </div>
+        <span class="section-count">{{ articles|length }} resultados</span>
+      </div>
+      {% if articles %}
+      <div class="news-list">
+        {% for article in articles %}
+        <article class="news-item">
+          <div class="news-score {% if article.relevance_score >= 75 %}score-high{% elif article.relevance_score >= 45 %}score-mid{% endif %}">
+            <strong>{{ article.relevance_score }}</strong><span>RELEVÂNCIA</span>
+          </div>
+          <div class="news-body">
+            <div class="article-meta">
+              <span class="category-tag">{{ article.category or 'Pendente de IA' }}</span>
+              {% for topic in article.topics %}<span class="topic-tag">{{ topic.name }}</span>{% endfor %}
+              {% if article.related_sources %}<span class="coverage-tag">{{ article.related_sources|length }} fontes</span>{% endif %}
+            </div>
+            <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
+            <p class="news-summary">{{ article.summary or article.description or 'Conteúdo original indisponível para extração. Acesse a fonte para ler a matéria.' }}</p>
+            {% if article.related_sources %}
+            <div class="related-links">
+              {% for source in article.related_sources %}
+                <a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">{{ source.name or 'Outra fonte' }}</a>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <div class="article-footer">
+              <span>{{ article.source_name or article.source_domain }}</span>
+              <time>{% if article.published_at %}{{ article.published_at.strftime('%d/%m/%Y · %H:%M') }}{% else %}Descoberta {{ article.discovered_at.strftime('%d/%m · %H:%M') }}{% endif %}</time>
+              <a class="original-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">Ler notícia original <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <span class="empty-mark" aria-hidden="true">N</span>
+        <h3>Nenhuma notícia por aqui ainda</h3>
+        <p>Confira os temas em <code>config.yaml</code> e as fontes em <code>sources.yaml</code>, depois inicie uma coleta.</p>
+        <button class="collect-button" type="button" data-collect>↻ <span>Iniciar coleta</span></button>
+      </div>
+      {% endif %}
+    </section>
+    <footer class="page-footer"><span>NEWSRADAR / SELF-HOSTED</span><span>Dados locais · {{ total_articles }} artigos indexados</span></footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+services:
+  newsradar:
+    build: .
+    container_name: newsradar
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
+      - ./sources.yaml:/app/sources.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+# Para adicionar o SearXNG futuramente, declare-o aqui e conecte ambos os
+# serviços à mesma rede; então mantenha SEARXNG_URL=http://searxng:8080.
+# Não é necessário executar Ollama neste compose: ele permanece externo.
+#  searxng:
+#    image: searxng/searxng:latest
+#    ports:
+#      - "8080:8080"

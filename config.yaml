@@ -1,0 +1,27 @@
+languages:
+  - pt
+  - en
+
+topics:
+  - name: cybersecurity
+    queries:
+      - cybersecurity
+      - cyber attack
+      - vulnerability CVE
+    enabled: true
+  - name: inteligência artificial
+    queries:
+      - artificial intelligence
+      - inteligência artificial
+      - machine learning
+    enabled: true
+  - name: Linux
+    queries:
+      - Linux
+      - Linux security
+    enabled: true
+  - name: open source
+    queries:
+      - open source
+      - software livre
+    enabled: true

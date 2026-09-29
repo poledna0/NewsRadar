@@ -1,0 +1,1 @@
+"""NewsRadar self-hosted news aggregator."""

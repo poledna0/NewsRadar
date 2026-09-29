@@ -30,6 +30,3 @@ feeds:
   - name: ScienceDaily Artificial Intelligence
     url: https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml
     enabled: true
-  - name: ScienceDaily Computer Security
-    url: https://www.sciencedaily.com/rss/computers_math/computer_security.xml
-    enabled: true

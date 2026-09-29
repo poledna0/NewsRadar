@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3.5:9b"
     collection_interval_minutes: int = Field(default=30, ge=5)
     max_results_per_query: int = Field(default=10, ge=1, le=50)
+    max_results_per_feed: int = Field(default=20, ge=1, le=100)
     article_max_age_hours: int = Field(default=48, ge=1)
     request_timeout_seconds: float = Field(default=15, gt=0, le=120)
     http_user_agent: str = "NewsRadar/0.1 (+self-hosted news aggregator)"

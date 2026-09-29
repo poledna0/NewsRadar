@@ -3,6 +3,7 @@ import logging
 import feedparser
 from dateutil import parser as date_parser
 
+from app.config import get_settings
 from app.services.http import get_public_response
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,14 @@ async def read_feed(feed: dict) -> list[dict]:
         if parsed.bozo and not parsed.entries:
             raise ValueError(str(parsed.bozo_exception))
         items = []
-        for entry in parsed.entries:
+        entries = parsed.entries[: get_settings().max_results_per_feed]
+        if len(parsed.entries) > len(entries):
+            logger.info(
+                "RSS feed '%s' capped at %s entries",
+                feed.get("name", feed.get("url")),
+                len(entries),
+            )
+        for entry in entries:
             link = entry.get("link")
             title = entry.get("title")
             if not link or not title:

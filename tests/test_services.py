@@ -157,6 +157,19 @@ async def test_rss_parser_returns_entries(monkeypatch):
     assert result[0]["source_name"] == "Teste"
 
 
+@pytest.mark.asyncio
+async def test_rss_feed_entry_limit_is_enforced(monkeypatch):
+    entries = [
+        {"title": f"Artigo {index}", "link": f"https://example.org/{index}"}
+        for index in range(3)
+    ]
+    monkeypatch.setattr(rss, "get_public_response", lambda *_args: _fake_response())
+    monkeypatch.setattr(rss.feedparser, "parse", lambda _content: SimpleNamespace(bozo=False, entries=entries))
+    monkeypatch.setattr(rss, "get_settings", lambda: SimpleNamespace(max_results_per_feed=2))
+    result = await rss.read_feed({"name": "Teste", "url": "https://example.org/rss"})
+    assert len(result) == 2
+
+
 async def _fake_response():
     return SimpleNamespace(content=b"<rss />")
 

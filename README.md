@@ -52,6 +52,7 @@ As opções de infraestrutura ficam no `.env`; use `.env.example` como base. As 
 | `OLLAMA_MODEL` | `qwen3.5:9b` | Modelo local de IA |
 | `COLLECTION_INTERVAL_MINUTES` | `30` | Intervalo mínimo entre coletas agendadas (5 ou mais) |
 | `MAX_RESULTS_PER_QUERY` | `10` | Limite de resultados para cada consulta |
+| `MAX_RESULTS_PER_FEED` | `20` | Limite de entradas lidas de cada feed por ciclo |
 | `ARTICLE_MAX_AGE_HOURS` | `48` | Idade máxima de publicação aceita |
 | `REQUEST_TIMEOUT_SECONDS` | `15` | Timeout das requisições externas |
 | `HTTP_USER_AGENT` | `NewsRadar/0.1 ...` | Identificação das requisições |

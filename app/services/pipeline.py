@@ -157,7 +157,8 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
     counters["new"] += 1
 
 
-async def _process_pending(session: Session, topic_by_name: dict[str, Topic], limit: int = 25) -> int:
+async def _process_pending(session: Session, topic_by_name: dict[str, Topic], limit: int | None = None) -> int:
+    limit = limit or get_settings().ai_articles_per_run
     pending = session.scalars(
         select(Article).where(Article.processing_status == "pending_ai").order_by(Article.discovered_at.desc()).limit(limit)
     ).all()

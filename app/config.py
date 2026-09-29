@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     config_file: str = "config.yaml"
     sources_file: str = "sources.yaml"
     max_queries_per_topic: int = Field(default=4, ge=1, le=10)
+    ai_articles_per_run: int = Field(default=200, ge=1, le=500)
     collect_on_start: bool = True
     respect_robots_txt: bool = True
 

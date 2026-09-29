@@ -54,6 +54,7 @@ As opções de infraestrutura ficam no `.env`; use `.env.example` como base. As 
 | `REQUEST_TIMEOUT_SECONDS` | `15` | Timeout das requisições externas |
 | `HTTP_USER_AGENT` | `NewsRadar/0.1 ...` | Identificação das requisições |
 | `MAX_QUERIES_PER_TOPIC` | `4` | Limite de consultas por tema em cada ciclo |
+| `AI_ARTICLES_PER_RUN` | `200` | Limite de artigos pendentes enviados ao Ollama em cada ciclo |
 | `COLLECT_ON_START` | `true` | Faz uma coleta ao iniciar a aplicação |
 | `RESPECT_ROBOTS_TXT` | `true` | Consulta robots.txt antes de extrair páginas |
 

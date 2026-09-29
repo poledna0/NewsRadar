@@ -1,17 +1,25 @@
-# Política de segurança
+# Security Policy
 
-## Versões suportadas
+## Supported Versions
 
-A versão suportada é a branch `main`. Correções de segurança são publicadas nessa branch; atualize a imagem Docker após a publicação.
+The supported version is the `main` branch. Security fixes are published to this branch; update the Docker image after a security fix is released.
 
-## Reportar uma vulnerabilidade
+## Reporting a Vulnerability
 
-Não publique detalhes exploráveis em uma issue pública. Use o recurso **Report a vulnerability** na aba **Security** do GitHub para enviar um aviso privado aos mantenedores. Inclua passos de reprodução, impacto, versão/commit e uma correção sugerida, se houver.
+Do not disclose exploitable details in a public issue. Use GitHub's **Report a vulnerability** feature under the **Security** tab to privately notify the maintainers. Include reproduction steps, impact, affected version/commit, and a suggested fix, if available.
 
-Se o recurso privado não estiver habilitado no repositório, abra uma issue sem detalhes exploráveis pedindo um canal privado. Não envie senhas, tokens ou dados de usuários.
+If the private reporting feature is not enabled for the repository, open an issue without exploitable details and request a private communication channel. Do not include passwords, tokens, or user data.
 
-## Escopo de segurança
+## Security Scope
 
-Áreas especialmente sensíveis: SSRF/DNS rebinding no scraper, validação de JWT Cloudflare Access, exposição da origem sem autenticação, XSS/CSRF, limites de requisição, prompts/resultados do Ollama e migrações SQLite.
+The following areas are particularly security-sensitive:
 
-O NewsRadar não substitui o controle de acesso de rede. Mantenha a origem inacessível pela internet pública; Cloudflare Access só protege a origem quando o tráfego direto também está restringido ou quando o app valida o JWT configurado.
+- SSRF/DNS rebinding in the scraper
+- Cloudflare Access JWT validation
+- Origin exposure without authentication
+- XSS/CSRF
+- Request rate limits
+- Ollama prompts and results
+- SQLite migrations
+
+NewsRadar does not replace network-level access controls. Keep the origin inaccessible from the public internet. Cloudflare Access only protects the origin when direct traffic to the origin is also restricted, or when the application validates the configured JWT.

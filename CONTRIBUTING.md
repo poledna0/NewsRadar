@@ -1,16 +1,16 @@
-# Contribuindo
+# Contributing
 
-Obrigado por considerar uma contribuição ao NewsRadar. O projeto prioriza simplicidade operacional, privacidade e execução local.
+Thank you for considering contributing to NewsRadar. The project prioritizes operational simplicity, privacy, and local execution.
 
-## Antes de começar
+## Before You Start
 
-1. Procure issues existentes para evitar trabalho duplicado.
-2. Para mudanças grandes, abra uma issue descrevendo o problema e a solução proposta.
-3. Não inclua tokens, URLs privadas, dados pessoais ou bancos de produção em commits.
+1. Check existing issues to avoid duplicate work.
+2. For major changes, open an issue describing the problem and the proposed solution.
+3. Do not include tokens, private URLs, personal data, or production databases in commits.
 
-## Ambiente de desenvolvimento
+## Development Environment
 
-Requisitos: Python 3.12+ e, opcionalmente, Docker Compose.
+Requirements: Python 3.12+ and, optionally, Docker Compose.
 
 ```sh
 python -m venv .venv
@@ -20,25 +20,25 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-Os testes devem ser determinísticos: simule HTTP, SearXNG e Ollama em vez de depender de serviços externos.
+Tests should be deterministic: mock HTTP, SearXNG, and Ollama instead of relying on external services.
 
-## Diretrizes
+## Guidelines
 
-- Mantenha FastAPI, Jinja e JavaScript leve; não introduza um frontend pesado sem uma necessidade clara.
-- Valide dados externos e mantenha SearXNG/Ollama como infraestrutura configurável.
-- Preserve dados existentes: alterações de schema precisam de migração aditiva e teste.
-- Trate resultados de RSS, scraping e LLM como entrada não confiável.
-- Prefira comentários curtos para explicar decisões de segurança ou fluxo não óbvias.
-- Atualize README ou `docs/` quando mudar instalação, configuração ou comportamento da API.
+- Keep FastAPI, Jinja, and JavaScript lightweight; do not introduce a heavy frontend without a clear need.
+- Validate external data and keep SearXNG/Ollama as configurable infrastructure.
+- Preserve existing data: schema changes must use additive migrations and include tests.
+- Treat RSS, scraping, and LLM results as untrusted input.
+- Prefer short comments that explain non-obvious security decisions or control flow.
+- Update the README or `docs/` when changing installation, configuration, or API behavior.
 
-## Pull requests
+## Pull Requests
 
-- Uma mudança focada por PR, com contexto e comportamento esperado.
-- Inclua testes para novos caminhos ou correções.
-- Rode `python -m pytest -q` e descreva o resultado.
-- Use commits Conventional Commits com descrição concisa em português, por exemplo `feat: adiciona filtro por fonte` ou `fix: valida destino de redirecionamento`.
-- Não inclua alterações geradas, `.env`, banco SQLite ou credenciais.
+- Keep one focused change per PR, with context and expected behavior.
+- Include tests for new code paths or bug fixes.
+- Run `python -m pytest -q` and describe the result.
+- Use Conventional Commits with a concise description in English, for example `feat: add source filter` or `fix: validate redirect target`.
+- Do not include generated files, `.env` files, SQLite databases, or credentials.
 
-## Revisão
+## Review
 
-PRs são avaliados por segurança, compatibilidade com self-hosting, legibilidade, testes e manutenção de dados. Uma contribuição pode ser solicitada em partes menores antes de ser aceita.
+PRs are reviewed for security, self-hosting compatibility, readability, testing, and data preservation. A contribution may be requested to be split into smaller changes before it is accepted.git 

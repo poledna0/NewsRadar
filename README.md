@@ -10,10 +10,12 @@ Agregador pessoal de notícias self-hosted. O NewsRadar descobre matérias por t
 
 ## Início rápido com Docker
 
-Na pasta do projeto, crie o arquivo de ambiente e inicie o serviço:
+Na pasta do projeto, crie o arquivo de ambiente, prepare o diretório persistente com o UID/GID do usuário e inicie o serviço:
 
-```powershell
-Copy-Item .env.example .env
+```sh
+cp .env.example .env
+mkdir -p data
+sed -i "s/^APP_UID=.*/APP_UID=$(id -u)/; s/^APP_GID=.*/APP_GID=$(id -g)/" .env
 docker compose up -d --build
 ```
 
@@ -181,4 +183,4 @@ Os testes cobrem normalização e deduplicação, classificação, persistência
 
 ## Segurança e limites
 
-O endpoint administrativo não recebe URLs nem comandos: opera apenas sobre `config.yaml` e `sources.yaml`, e a coleta manual é restrita a clientes locais/privados. Requisições de scraping bloqueiam destinos privados, loopback, credenciais embutidas e protocolos diferentes de HTTP(S); redirecionamentos passam pela mesma validação. O `.env` não deve ser publicado. Como a API de leitura não tem autenticação, não exponha a porta diretamente à internet; use firewall/rede privada ou um proxy com controles de acesso. Conteúdo de artigos é renderizado pelo Jinja com escape automático. O agregador não tenta contornar bloqueios de scraping; quando o site recusa ou proíbe extração, mantém os dados de descoberta e o link original.
+O container roda sem privilégios, com filesystem raiz somente leitura, sem capabilities e com `no-new-privileges`; apenas `./data` é gravável. O endpoint administrativo não recebe URLs nem comandos: opera apenas sobre `config.yaml` e `sources.yaml`, e a coleta manual é restrita a clientes locais/privados. Requisições de scraping bloqueiam destinos privados, loopback, credenciais embutidas e protocolos diferentes de HTTP(S); redirecionamentos passam pela mesma validação. O `.env` não deve ser publicado. Como a API de leitura não tem autenticação, não exponha a porta diretamente à internet; use firewall/rede privada ou um proxy com controles de acesso. Conteúdo de artigos é renderizado pelo Jinja com escape automático. O agregador não tenta contornar bloqueios de scraping; quando o site recusa ou proíbe extração, mantém os dados de descoberta e o link original.

@@ -50,6 +50,16 @@ def test_topic_can_be_added_with_search_terms(client):
     assert response.json()["name"] == "Computação quântica"
 
 
+def test_disabled_topic_can_be_reenabled_from_the_form(client):
+    created = client.post("/api/topics", json={"name": "Sistemas distribuídos"})
+    topic_id = created.json()["id"]
+    assert client.delete(f"/api/topics/{topic_id}").status_code == 204
+    recreated = client.post("/api/topics", json={"name": "Sistemas distribuídos", "queries": ["distributed systems"]})
+    assert recreated.status_code == 201
+    assert recreated.json()["enabled"] is True
+    assert recreated.json()["queries"] == ["distributed systems"]
+
+
 def test_cross_site_write_is_rejected(client):
     response = client.post("/api/topics", headers={"Origin": "https://attacker.example"}, json={"name": "tema invasor"})
     assert response.status_code == 403

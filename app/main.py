@@ -213,7 +213,7 @@ def get_article(article_id: int, session: Session = Depends(get_db)):
 
 @app.get("/api/topics", response_model=list[TopicOut])
 def list_topics(session: Session = Depends(get_db)):
-    return session.scalars(select(Topic).order_by(Topic.name)).all()
+    return session.scalars(select(Topic).where(Topic.enabled.is_(True)).order_by(Topic.name)).all()
 
 
 @app.post("/api/topics", response_model=TopicOut, status_code=201)
@@ -222,7 +222,13 @@ def create_topic(payload: TopicCreate, request: Request, session: Session = Depe
     name = payload.name.strip()
     existing = session.scalar(select(Topic).where(func.lower(Topic.name) == name.lower()))
     if existing:
-        raise HTTPException(status_code=409, detail="topic already exists")
+        if existing.enabled:
+            raise HTTPException(status_code=409, detail="topic already exists")
+        existing.enabled = True
+        existing.queries = payload.normalized_queries()
+        session.commit()
+        session.refresh(existing)
+        return existing
     topic = Topic(name=name, queries=payload.normalized_queries(), origin="ui", enabled=True)
     session.add(topic)
     session.commit()

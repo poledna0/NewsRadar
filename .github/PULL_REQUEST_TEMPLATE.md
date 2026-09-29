@@ -3,7 +3,7 @@
 ## Por que
 
 ## Como validar
-- [ ] `pytest -q`
+- [ ] `python -m pytest -q`
 - [ ] Documentação atualizada, se aplicável
 
 ## Riscos ou notas para revisão

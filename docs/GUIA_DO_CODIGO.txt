@@ -49,5 +49,5 @@ AUDITAR UMA MUDANCA
 -------------------
 Comece na rota de main.py ou no controle de index.html. Siga payload -> schema Pydantic -> servico -> modelo. Para rede, confirme DNS, protocolo, redirects, timeout e tamanho. Para banco, examine ensure_schema() e adicione um teste que mantenha os dados antigos. Para IA, revise o prompt e a validacao do JSON.
 
-Validacao local: pip install -r requirements-dev.txt && pytest -q
+Validacao local: pip install -r requirements-dev.txt && python -m pytest -q
 Validacao Docker: docker compose logs -f newsradar; consulte /health e /api/stats.

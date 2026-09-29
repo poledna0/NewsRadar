@@ -127,7 +127,7 @@ O scraper valida destino público em cada resolução, fixa o IP no socket e rev
 
 ```sh
 pip install -r requirements-dev.txt
-pytest -q
+python -m pytest -q
 ```
 
 Pull requests e relatos de bugs são bem-vindos. Leia [CONTRIBUTING.md](CONTRIBUTING.md) antes de abrir uma contribuição. A CI executa os testes em Python 3.12.

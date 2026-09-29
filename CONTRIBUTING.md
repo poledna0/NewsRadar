@@ -17,7 +17,7 @@ python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
-pytest -q
+python -m pytest -q
 ```
 
 Os testes devem ser determinísticos: simule HTTP, SearXNG e Ollama em vez de depender de serviços externos.
@@ -35,7 +35,7 @@ Os testes devem ser determinísticos: simule HTTP, SearXNG e Ollama em vez de de
 
 - Uma mudança focada por PR, com contexto e comportamento esperado.
 - Inclua testes para novos caminhos ou correções.
-- Rode `pytest -q` e descreva o resultado.
+- Rode `python -m pytest -q` e descreva o resultado.
 - Use commits Conventional Commits com descrição concisa em português, por exemplo `feat: adiciona filtro por fonte` ou `fix: valida destino de redirecionamento`.
 - Não inclua alterações geradas, `.env`, banco SQLite ou credenciais.
 

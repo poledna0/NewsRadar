@@ -127,7 +127,7 @@ The scraper validates public destinations at resolution time, pins the IP to the
 
 ```sh
 pip install -r requirements-dev.txt
-pytest -q
+python -m pytest -q
 ```
 
 Pull requests and bug reports are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before contributing. CI runs tests on Python 3.12.

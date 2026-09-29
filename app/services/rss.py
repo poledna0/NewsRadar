@@ -3,15 +3,14 @@ import logging
 import feedparser
 from dateutil import parser as date_parser
 
-from app.services.http import make_client, get_public_response
+from app.services.http import get_public_response
 
 logger = logging.getLogger(__name__)
 
 
 async def read_feed(feed: dict) -> list[dict]:
     try:
-        async with make_client() as client:
-            response = await get_public_response(client, feed["url"])
+        response = await get_public_response(feed["url"])
         parsed = feedparser.parse(response.content)
         if parsed.bozo and not parsed.entries:
             raise ValueError(str(parsed.bozo_exception))
@@ -35,6 +34,7 @@ async def read_feed(feed: dict) -> list[dict]:
                     "published_at": published,
                     "image_url": None,
                     "topic_names": [],
+                    "article_type": feed.get("article_type", "news"),
                 }
             )
         return items

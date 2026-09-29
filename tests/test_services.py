@@ -10,7 +10,7 @@ from app.database import Base
 from app.models import Article
 from app.services import ollama, rss
 from app.services.deduplicator import find_title_duplicate, normalize_title, normalize_url, title_similarity
-from app.services.http import validate_public_url
+from app.services.http import PublicResolver, validate_public_url
 
 
 def test_url_normalization_removes_tracking_and_fragment():
@@ -42,6 +42,17 @@ def test_title_similarity_groups_small_variations():
 def test_private_article_urls_are_rejected():
     assert not __import__("asyncio").run(validate_public_url("http://127.0.0.1/article"))
     assert not __import__("asyncio").run(validate_public_url("file:///tmp/article"))
+
+
+@pytest.mark.asyncio
+async def test_scraper_dns_resolver_rejects_private_answers(monkeypatch):
+    class FakeLoop:
+        async def getaddrinfo(self, _host, port, **_kwargs):
+            return [(2, 1, 6, "", ("10.0.0.8", port))]
+
+    monkeypatch.setattr("app.services.http.asyncio.get_running_loop", lambda: FakeLoop())
+    with pytest.raises(OSError, match="not globally routable"):
+        await PublicResolver().resolve("attacker.example", 443)
 
 
 def test_article_storage_round_trip():
@@ -95,6 +106,26 @@ async def test_classification_limits_topics_and_score(monkeypatch):
     result = await ollama.classify({"title": "Linux"}, ["Linux"])
     assert result["relevance_score"] == 100
     assert result["topics"] == ["Linux"]
+    assert result["article_type"] == "news"
+
+
+@pytest.mark.asyncio
+async def test_research_sources_remain_classified_as_research(monkeypatch):
+    async def fake_generate(_prompt):
+        return '{"relevance_score": 80, "category": "ai", "article_type": "news", "topics": ["AI"]}'
+
+    monkeypatch.setattr(ollama, "_generate", fake_generate)
+    result = await ollama.classify({"title": "A new paper", "article_type": "research"}, ["AI"])
+    assert result["article_type"] == "research"
+
+
+@pytest.mark.asyncio
+async def test_translation_returns_only_translated_text(monkeypatch):
+    async def fake_generate(_prompt):
+        return '{"translation": "O sistema protege a conta."}'
+
+    monkeypatch.setattr(ollama, "_generate", fake_generate)
+    assert await ollama.translate_to_pt_br("The system protects the account.") == "O sistema protege a conta."
 
 
 @pytest.mark.asyncio
@@ -112,14 +143,6 @@ async def test_event_consolidation_returns_title_and_summary(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_rss_parser_returns_entries(monkeypatch):
-    class FakeClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args):
-            return None
-
-    monkeypatch.setattr(rss, "make_client", FakeClient)
     monkeypatch.setattr(rss, "get_public_response", lambda *_args: _fake_response())
     monkeypatch.setattr(
         rss.feedparser,
@@ -140,16 +163,8 @@ async def _fake_response():
 
 @pytest.mark.asyncio
 async def test_broken_rss_returns_empty_list(monkeypatch):
-    class FakeClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args):
-            return None
-
     async def broken_request(*_args):
         raise httpx.ConnectError("offline")
 
-    monkeypatch.setattr(rss, "make_client", FakeClient)
     monkeypatch.setattr(rss, "get_public_response", broken_request)
     assert await rss.read_feed({"name": "Offline", "url": "https://example.org/rss"}) == []

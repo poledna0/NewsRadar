@@ -11,3 +11,25 @@ feeds:
   - name: BBC News
     url: https://feeds.bbci.co.uk/news/technology/rss.xml
     enabled: true
+  - name: arXiv Artificial Intelligence
+    url: https://export.arxiv.org/rss/cs.AI
+    article_type: research
+    enabled: true
+  - name: arXiv Computer Vision
+    url: https://export.arxiv.org/rss/cs.CV
+    article_type: research
+    enabled: true
+  - name: arXiv Cryptography and Security
+    url: https://export.arxiv.org/rss/cs.CR
+    article_type: research
+    enabled: true
+  - name: arXiv Machine Learning
+    url: https://export.arxiv.org/rss/cs.LG
+    article_type: research
+    enabled: true
+  - name: ScienceDaily Artificial Intelligence
+    url: https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml
+    enabled: true
+  - name: ScienceDaily Computer Security
+    url: https://www.sciencedaily.com/rss/computers_math/computer_security.xml
+    enabled: true

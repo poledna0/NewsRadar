@@ -34,21 +34,26 @@ def _parse_datetime(value) -> datetime | None:
 
 
 def sync_topics(session: Session) -> list[Topic]:
+    # YAML seeds hand-edited topics; SQLite remains authoritative for topics created in the UI.
     configured = get_settings().topics()
-    found = []
     for item in configured:
         name = str(item.get("name", "")).strip()
         if not name:
             continue
         topic = session.scalar(select(Topic).where(Topic.name == name))
         if topic is None:
-            topic = Topic(name=name, enabled=bool(item.get("enabled", True)))
+            topic = Topic(
+                name=name,
+                queries=item.get("queries") or [name],
+                origin="yaml",
+                enabled=bool(item.get("enabled", True)),
+            )
             session.add(topic)
-        else:
+        elif topic.origin == "yaml":
+            topic.queries = item.get("queries") or [name]
             topic.enabled = bool(item.get("enabled", True))
-        found.append(topic)
     session.commit()
-    return found
+    return session.scalars(select(Topic).where(Topic.enabled.is_(True)).order_by(Topic.name)).all()
 
 
 def _sync_sources(session: Session, feeds: list[dict]) -> None:
@@ -106,10 +111,13 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
     if published_at and published_at < cutoff:
         return
     counters["discovered"] += 1
+    # Compare recent titles only after canonical-URL deduplication, and never merge a paper into its news coverage.
     candidates = session.scalars(
         select(Article).where(Article.discovered_at >= utc_now() - timedelta(days=3)).order_by(Article.discovered_at.desc())
     ).all()
     duplicate = find_title_duplicate(item.get("title", ""), candidates)
+    if duplicate and duplicate.article_type != item.get("article_type", "news"):
+        duplicate = None
     if duplicate:
         sources = list(duplicate.related_sources or [])
         known_urls = {source.get("url") for source in sources}
@@ -148,6 +156,7 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
         content=extracted.get("content"),
         description=extracted.get("description") or item.get("description"),
         image_url=extracted.get("image_url") or item.get("image_url"),
+        article_type=item.get("article_type", "news"),
         processing_status="pending_ai",
         event_key=event_key(item.get("title", "")),
     )
@@ -170,12 +179,14 @@ async def _process_pending(session: Session, topic_by_name: dict[str, Topic], li
             "source_name": article.source_name,
             "description": article.description or "",
             "content": article.content or "",
+            "article_type": article.article_type,
             "related_sources": article.related_sources or [],
         }
         try:
             classification, summary, consolidated_title = await process_article(payload, topic_names)
             article.relevance_score = classification["relevance_score"]
             article.category = classification.get("category") or "Geral"
+            article.article_type = classification.get("article_type", "news")
             article.summary = summary
             if consolidated_title:
                 article.title = consolidated_title
@@ -184,6 +195,7 @@ async def _process_pending(session: Session, topic_by_name: dict[str, Topic], li
             session.commit()
             processed += 1
         except Exception as error:
+            # Keep collected content available and retry it in a later cycle if Ollama is unavailable.
             session.rollback()
             article = session.get(Article, article.id)
             if article:
@@ -209,16 +221,15 @@ async def collect_news() -> dict:
             topic_by_name = {topic.name: topic for topic in topics if topic.enabled}
             feeds = [feed for feed in settings.feeds() if feed.get("enabled", True)]
             _sync_sources(session, settings.feeds())
-            for topic in settings.topics():
-                if topic.get("enabled", True):
-                    results = await search_topic(topic)
-                    for item in results:
-                        try:
-                            await _ingest(session, item, run, topic_by_name, counters)
-                        except Exception:
-                            session.rollback()
-                            counters["errors"] += 1
-                            logger.exception("Could not ingest search result: %s", item.get("url"))
+            for topic in topic_by_name.values():
+                results = await search_topic({"name": topic.name, "queries": topic.queries or [topic.name]})
+                for item in results:
+                    try:
+                        await _ingest(session, item, run, topic_by_name, counters)
+                    except Exception:
+                        session.rollback()
+                        counters["errors"] += 1
+                        logger.exception("Could not ingest search result: %s", item.get("url"))
             for feed in feeds:
                 results = await read_feed(feed)
                 for item in results:

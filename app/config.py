@@ -26,9 +26,19 @@ class Settings(BaseSettings):
     config_file: str = "config.yaml"
     sources_file: str = "sources.yaml"
     max_queries_per_topic: int = Field(default=4, ge=1, le=10)
+    max_research_results_per_topic: int = Field(default=5, ge=1, le=20)
     ai_articles_per_run: int = Field(default=200, ge=1, le=500)
+    max_http_response_bytes: int = Field(default=8_000_000, ge=100_000, le=25_000_000)
+    allowed_hosts: str = "localhost,127.0.0.1,host.docker.internal"
+    max_request_body_bytes: int = Field(default=64_000, ge=1_024, le=1_000_000)
+    cf_access_team_domain: str | None = None
+    cf_access_audience: str | None = None
     collect_on_start: bool = True
     respect_robots_txt: bool = True
+
+    @property
+    def allowed_host_list(self) -> list[str]:
+        return [host.strip() for host in self.allowed_hosts.split(",") if host.strip()]
 
     @property
     def config_path(self) -> Path:

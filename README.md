@@ -2,6 +2,8 @@
 
 Agregador pessoal de notícias self-hosted. O NewsRadar descobre matérias por tema usando SearXNG e feeds RSS/Atom, extrai o conteúdo disponível, agrupa manchetes semelhantes e usa um servidor Ollama externo para classificação e resumo em português. O banco SQLite e toda a configuração ficam no servidor do usuário.
 
+Para uma leitura guiada do fluxo, dos módulos e da revisão de segurança antes de abrir o código, leia [GUIA_DO_CODIGO.txt](GUIA_DO_CODIGO.txt).
+
 ## Requisitos
 
 - Docker Engine e Docker Compose v2 para a instalação recomendada.
@@ -54,7 +56,13 @@ As opções de infraestrutura ficam no `.env`; use `.env.example` como base. As 
 | `REQUEST_TIMEOUT_SECONDS` | `15` | Timeout das requisições externas |
 | `HTTP_USER_AGENT` | `NewsRadar/0.1 ...` | Identificação das requisições |
 | `MAX_QUERIES_PER_TOPIC` | `4` | Limite de consultas por tema em cada ciclo |
+| `MAX_RESEARCH_RESULTS_PER_TOPIC` | `5` | Limite adicional de resultados científicos por tema |
 | `AI_ARTICLES_PER_RUN` | `200` | Limite de artigos pendentes enviados ao Ollama em cada ciclo |
+| `MAX_HTTP_RESPONSE_BYTES` | `8000000` | Tamanho máximo de cada página/feed baixado |
+| `MAX_REQUEST_BODY_BYTES` | `64000` | Limite de corpo HTTP aceito |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1,host.docker.internal` | Hosts HTTP permitidos; acrescente IP LAN e domínio do proxy |
+| `CF_ACCESS_TEAM_DOMAIN` | vazio | Domínio da equipe Cloudflare Access; habilita validação JWT na origem |
+| `CF_ACCESS_AUDIENCE` | vazio | Audience da aplicação Access; use junto com o domínio da equipe |
 | `COLLECT_ON_START` | `true` | Faz uma coleta ao iniciar a aplicação |
 | `RESPECT_ROBOTS_TXT` | `true` | Consulta robots.txt antes de extrair páginas |
 
@@ -82,7 +90,9 @@ topics:
     enabled: true
 ```
 
-Sem consultas explícitas, são usadas o nome do tema e uma variante com `news`. Até `MAX_QUERIES_PER_TOPIC` consultas são enviadas ao SearXNG por tema e ciclo. A lista `languages` documenta os idiomas de interesse; os resultados atuais são coletados sem uma restrição de idioma rígida para não descartar cobertura relevante.
+Sem consultas explícitas, é usado o próprio nome do tema. Pela interface, informe sinônimos e consultas em linhas separadas. Cada tema consulta fontes de notícias e faz uma busca científica adicional limitada por `MAX_RESEARCH_RESULTS_PER_TOPIC`. A lista `languages` documenta os idiomas de interesse; os resultados são coletados sem restrição rígida de idioma.
+
+Na página, use **+ Tema** para cadastrar um tema e consultas, e **×** para desativá-lo. Os temas adicionados pela tela ficam no SQLite e sobrevivem a reinícios; temas do YAML continuam compatíveis.
 
 ### Feeds RSS/Atom
 
@@ -95,7 +105,7 @@ feeds:
     enabled: true
 ```
 
-Cada feed é isolado: erro de rede, HTTP 403 ou XML inválido é registrado e não interrompe as outras fontes. RSS complementa a busca; não é a única via de descoberta.
+Cada feed é isolado: erro de rede, HTTP 403 ou XML inválido é registrado e não interrompe as outras fontes. O arquivo inclui fontes jornalísticas, centros de divulgação científica e feeds primários de preprints arXiv. Marque `article_type: research` somente para fontes primárias; o classificador separa paper/preprint de uma matéria de jornal que apenas relata um estudo.
 
 ## Execução sem Docker
 
@@ -115,9 +125,12 @@ Para uso local sem SearXNG, configure outro endereço em `SEARXNG_URL`; falhas d
 
 A página inicial mostra as notícias mais importantes e o fluxo recente, com filtros por tema, período de 6/24 horas, fonte, relevância e palavra. A aba **Múltiplas fontes** reúne matérias com manchetes semelhantes e links para as fontes relacionadas. O botão **Coletar agora** executa o ciclo manual.
 
-- `GET /api/articles`: lista filtrável; parâmetros `topic`, `hours`, `source`, `search`, `sort=date|relevance`, `limit` e `offset`.
+- `GET /api/articles`: lista filtrável; parâmetros `topic`, `kind=news|research`, `hours`, `source`, `search`, `sort=date|relevance`, `limit` e `offset`.
 - `GET /api/articles/{id}`: detalhes de um artigo.
 - `GET /api/topics`: temas ativos/configurados.
+- `POST /api/topics`: adiciona um tema com consultas; `DELETE /api/topics/{id}` desativa sem apagar vínculos históricos.
+- `POST /api/translate`: traduz até 12 mil caracteres para pt-BR via Ollama.
+- `POST /api/articles/{id}/translate`: traduz e guarda título/resumo para evitar inferência repetida.
 - `GET /api/sources`: feeds registrados e domínios descobertos.
 - `POST /api/collect`: inicia uma coleta das fontes configuradas somente para clientes da rede privada; retorna HTTP 409 se outra já estiver em andamento.
 - `GET /api/stats`: contagens e horário da última coleta.
@@ -129,6 +142,7 @@ Exemplo de resposta de classificação produzida pelo Ollama:
 {
   "relevance_score": 92,
   "category": "cybersecurity",
+  "article_type": "news",
   "topics": ["cybersecurity", "Linux"],
   "important": true
 }
@@ -139,11 +153,11 @@ O resumo é uma segunda chamada ao modelo, separada da classificação, e solici
 ## Pipeline
 
 1. O worker agenda ciclos a cada 30 minutos (configurável) e pode coletar uma vez ao iniciar.
-2. Cada tema gera um número limitado de consultas no SearXNG; os feeds configurados são consultados em seguida.
+2. Cada tema gera consultas limitadas nas categorias `news` e `science` do SearXNG; os feeds são consultados em seguida.
 3. URLs HTTP(S) são normalizadas e verificadas contra destinos locais/privados antes de requisições de artigo. URLs canônicas existentes são ignoradas.
 4. Títulos recentes são comparados com similaridade convencional. Manchetes semelhantes são agrupadas no registro existente, que mantém links das fontes relacionadas.
 5. Trafilatura tenta extrair título, autor, data, descrição, imagem e conteúdo principal, respeitando robots.txt. Metadados da busca/RSS são mantidos se a extração falhar.
-6. Artigos novos são salvos no SQLite antes da IA. Classificação e resumo são executados separadamente; erros deixam o artigo pendente e uma coleta posterior tenta processá-lo novamente.
+6. Artigos novos são salvos no SQLite antes da IA. A classificação diferencia notícia jornalística de paper/preprint; feeds de fontes primárias informam esse tipo como sugestão. Classificação e resumo são chamadas separadas; erros deixam o artigo pendente.
 
 O worker limita cada ciclo; um único feed, artigo ou serviço externo com falha não encerra o ciclo inteiro. Não há migrações automáticas para versões antigas do schema nesta primeira versão; faça backup de `data/` antes de atualizações que alterem modelos.
 
@@ -154,12 +168,14 @@ O worker limita cada ciclo; um único feed, artigo ou serviço externo com falha
 - `app/database.py` e `app/models.py`: engine/sessões SQLAlchemy e tabelas de artigos, fontes, temas, associações e execuções.
 - `app/services/search.py` e `rss.py`: adaptadores independentes para SearXNG e RSS/Atom; erros de cada consulta ou feed são isolados.
 - `app/services/http.py`: timeout, retry, validação de destino público e nova validação de cada redirecionamento antes de acessar uma página externa.
+- `app/services/cloudflare_access.py`: valida assinatura RS256, issuer, audience e expiração do JWT Access, se configurado.
 - `app/services/extractor.py`: consulta robots.txt e extrai conteúdo/metadados com Trafilatura; falhas resultam em metadados de descoberta, não em perda do artigo.
 - `app/services/deduplicator.py`: canonicalização de URLs e comparação convencional de títulos, sem chamada de IA.
 - `app/services/ollama.py`: prompts e chamadas separadas de classificação, resumo e consolidação de cobertura multi-fonte.
+- `app/services/cloudflare_access.py`: validação opcional do JWT de Access com JWKS, audiência, emissor e validade.
 - `app/services/pipeline.py`: coordena uma execução, persiste resultados antes da IA e deixa itens não processados como `pending_ai`.
 - `app/templates/` e `app/static/`: HTML Jinja com escape automático, estilos e interações leves em JavaScript.
-- `tests/`: testes das regras de URL/título, integração com serviços simulados, persistência e endpoints.
+- `tests/`: testes de URL/SSRF, serviços simulados, persistência, tradução e endpoints.
 
 Para auditar uma alteração, siga a entrada de `collect_news()` até os adaptadores de fonte e `_ingest()`, confira as mutações no modelo `Article` e então examine `_process_pending()` e os prompts de `ollama.py`. O resumo gerado por um LLM não é uma garantia factual; compare com as fontes originais antes de reutilizar informação sensível.
 
@@ -184,4 +200,4 @@ Os testes cobrem normalização e deduplicação, classificação, persistência
 
 ## Segurança e limites
 
-O container roda sem privilégios, com filesystem raiz somente leitura, sem capabilities e com `no-new-privileges`; apenas `./data` é gravável. O endpoint administrativo não recebe URLs nem comandos: opera apenas sobre `config.yaml` e `sources.yaml`, e a coleta manual é restrita a clientes locais/privados. Requisições de scraping bloqueiam destinos privados, loopback, credenciais embutidas e protocolos diferentes de HTTP(S); redirecionamentos passam pela mesma validação. O `.env` não deve ser publicado. Como a API de leitura não tem autenticação, não exponha a porta diretamente à internet; use firewall/rede privada ou um proxy com controles de acesso. Conteúdo de artigos é renderizado pelo Jinja com escape automático. O agregador não tenta contornar bloqueios de scraping; quando o site recusa ou proíbe extração, mantém os dados de descoberta e o link original.
+O container roda sem privilégios, com filesystem raiz somente leitura, sem capabilities e com `no-new-privileges`; apenas `./data` é gravável. O front define CSP restritiva, allowlist `TrustedHost`, limites de tamanho, cabeçalhos anti-frame/anti-sniff, validação de origem e rate-limit nas escritas. `.env` aceita `ALLOWED_HOSTS` separado por vírgulas; inclua o IP LAN e, ao configurar Cloudflare, o hostname público. Nada foi alterado no Cloudflare. Depois, preencha `CF_ACCESS_TEAM_DOMAIN` e `CF_ACCESS_AUDIENCE` para o app validar o JWT RS256 de Access na origem também. Sem essas variáveis, a identidade fica sob responsabilidade do proxy; não encaminhe portas do roteador. O scraper fixa cada conexão aos IPs públicos resolvidos (mitigando DNS rebinding), limita respostas, bloqueia credenciais/protocolos inválidos e revalida redirecionamentos. Conteúdo usa escape automático do Jinja. O rate-limit é local ao processo único; ao escalar workers, use armazenamento compartilhado. Prompt injection e erro factual de LLM permanecem riscos residuais; compare resumo/tradução com as fontes.

@@ -42,6 +42,8 @@ class Article(Base):
     description: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text)
     category: Mapped[str | None] = mapped_column(String(120))
+    article_type: Mapped[str] = mapped_column(String(20), default="news")
+    translation_pt: Mapped[str | None] = mapped_column(Text)
     relevance_score: Mapped[int] = mapped_column(Integer, default=0)
     language: Mapped[str | None] = mapped_column(String(12))
     image_url: Mapped[str | None] = mapped_column(Text)
@@ -70,6 +72,8 @@ class Topic(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True)
+    queries: Mapped[list] = mapped_column(JSON, default=list)
+    origin: Mapped[str] = mapped_column(String(16), default="yaml")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     articles: Mapped[list[Article]] = relationship(secondary=article_topics, back_populates="topics")
 

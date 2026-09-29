@@ -16,7 +16,8 @@
     <div class="topbar-meta">
       <span class="live-indicator"><i></i> Radar ativo</span>
       <span class="topbar-count">{{ total_articles }} artigos</span>
-      <button class="collect-button" id="collect-button" type="button">↻ <span>Coletar agora</span></button>
+      <button class="translate-open" id="translate-open" type="button" aria-label="Traduzir texto" title="Traduzir texto">Aa <span>Traduzir</span></button>
+      <button class="collect-button" id="collect-button" type="button" aria-label="Coletar agora" title="Coletar agora">↻ <span>Coletar</span></button>
     </div>
   </header>
 
@@ -24,7 +25,7 @@
     <section class="page-heading">
       <div>
         <p class="eyebrow">SEU PAINEL DE INFORMAÇÃO</p>
-        <h1>{% if view == 'events' %}Em destaque{% else %}Últimas notícias{% endif %}</h1>
+        <h1>{% if view == 'events' %}Em destaque{% elif selected_kind == 'research' %}Pesquisa / papers{% else %}Últimas notícias{% endif %}</h1>
         <p class="heading-note">Sinais relevantes, reunidos de fontes independentes.</p>
       </div>
       <div class="heading-status">
@@ -34,18 +35,28 @@
     </section>
 
     <nav class="topic-nav" aria-label="Filtrar por tema">
-      <a class="topic-link {% if not selected_topic %}active{% endif %}" href="/?view={{ view }}">Todas</a>
+      <a class="topic-link {% if not selected_topic %}active{% endif %}" href="/?view={{ view }}{% if selected_kind %}&kind={{ selected_kind }}{% endif %}">Todas</a>
       {% for topic in topics %}
-        <a class="topic-link {% if selected_topic == topic.name %}active{% endif %}" href="/?topic={{ topic.name|urlencode }}&view={{ view }}">{{ topic.name }}</a>
+        <span class="topic-chip">
+          <a class="topic-link {% if selected_topic == topic.name %}active{% endif %}" href="/?topic={{ topic.name|urlencode }}&view={{ view }}{% if selected_kind %}&kind={{ selected_kind }}{% endif %}">{{ topic.name }}</a>
+          <button class="topic-disable" type="button" data-disable-topic="{{ topic.id }}" aria-label="Desativar tema {{ topic.name }}">×</button>
+        </span>
       {% endfor %}
+      <button class="topic-add" id="topic-open" type="button">+ Tema</button>
       <span class="nav-spacer"></span>
-      <a class="view-link {% if view == 'latest' %}active{% endif %}" href="/?view=latest">Últimas</a>
-      <a class="view-link {% if view == 'events' %}active{% endif %}" href="/?view=events">Múltiplas fontes</a>
+      <a class="view-link {% if view == 'latest' %}active{% endif %}" href="/?view=latest{% if selected_kind %}&kind={{ selected_kind }}{% endif %}">Últimas</a>
+      <a class="view-link {% if view == 'events' %}active{% endif %}" href="/?view=events{% if selected_kind %}&kind={{ selected_kind }}{% endif %}">Múltiplas fontes</a>
+    </nav>
+
+    <nav class="kind-nav" aria-label="Tipo de publicação">
+      <a class="kind-link {% if not selected_kind or selected_kind == 'news' %}active{% endif %}" href="/?kind=news&view={{ view }}{% if selected_topic %}&topic={{ selected_topic|urlencode }}{% endif %}">Notícias</a>
+      <a class="kind-link {% if selected_kind == 'research' %}active{% endif %}" href="/?kind=research&view={{ view }}{% if selected_topic %}&topic={{ selected_topic|urlencode }}{% endif %}">Pesquisa / papers</a>
     </nav>
 
     <form class="filter-bar" method="get" action="/">
       <input type="hidden" name="view" value="{{ view }}">
       {% if selected_topic %}<input type="hidden" name="topic" value="{{ selected_topic }}">{% endif %}
+      {% if selected_kind %}<input type="hidden" name="kind" value="{{ selected_kind }}">{% endif %}
       <label class="search-box">
         <span aria-hidden="true">⌕</span>
         <input type="search" name="search" value="{{ search }}" placeholder="Buscar notícias" aria-label="Buscar notícias">
@@ -91,6 +102,7 @@
         <article class="highlight-item">
           <div class="article-meta">
             <span class="category-tag">{{ article.category or 'Em análise' }}</span>
+            <span class="kind-tag {% if article.article_type == 'research' %}research-kind{% endif %}">{% if article.article_type == 'research' %}Pesquisa{% else %}Notícia{% endif %}</span>
             <span class="score"><b>{{ article.relevance_score }}</b><small> / 100</small></span>
           </div>
           <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
@@ -123,11 +135,13 @@
           <div class="news-body">
             <div class="article-meta">
               <span class="category-tag">{{ article.category or 'Pendente de IA' }}</span>
+              <span class="kind-tag {% if article.article_type == 'research' %}research-kind{% endif %}">{% if article.article_type == 'research' %}Pesquisa{% else %}Notícia{% endif %}</span>
               {% for topic in article.topics %}<span class="topic-tag">{{ topic.name }}</span>{% endfor %}
               {% if article.related_sources %}<span class="coverage-tag">{{ article.related_sources|length }} fontes</span>{% endif %}
             </div>
             <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
             <p class="news-summary">{{ article.summary or article.description or 'Conteúdo original indisponível para extração. Acesse a fonte para ler a matéria.' }}</p>
+            {% if article.translation_pt %}<p class="translation-result"><strong>Tradução pt-BR</strong><br>{{ article.translation_pt }}</p>{% endif %}
             {% if article.related_sources %}
             <div class="related-links">
               {% for source in article.related_sources %}
@@ -138,6 +152,7 @@
             <div class="article-footer">
               <span>{{ article.source_name or article.source_domain }}</span>
               <time>{% if article.published_at %}{{ article.published_at.strftime('%d/%m/%Y · %H:%M') }}{% else %}Descoberta {{ article.discovered_at.strftime('%d/%m · %H:%M') }}{% endif %}</time>
+              {% if article.summary %}<button class="translate-article" type="button" data-translate-article="{{ article.id }}">{% if article.translation_pt %}Ver tradução{% else %}Traduzir resumo{% endif %}</button>{% endif %}
               <a class="original-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">Ler notícia original <span aria-hidden="true">↗</span></a>
             </div>
           </div>
@@ -156,6 +171,23 @@
     <footer class="page-footer"><span>NEWSRADAR / SELF-HOSTED</span><span>Dados locais · {{ total_articles }} artigos indexados</span></footer>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog class="action-dialog" id="topic-dialog" aria-labelledby="topic-dialog-title">
+    <form id="topic-form">
+      <div class="dialog-heading"><div><p class="eyebrow">PERSONALIZAR RADAR</p><h2 id="topic-dialog-title">Novo tema</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
+      <label>Nome do tema<input name="name" required minlength="2" maxlength="60" placeholder="Ex.: computação quântica"></label>
+      <label>Termos de busca, um por linha<textarea name="queries" maxlength="1200" rows="4" placeholder="quantum computing&#10;computação quântica&#10;quantum research"></textarea></label>
+      <p class="dialog-note">As consultas também buscam notícias e estudos científicos relacionados.</p>
+      <button class="collect-button" type="submit">Adicionar tema</button>
+    </form>
+  </dialog>
+  <dialog class="action-dialog translate-dialog" id="translate-dialog" aria-labelledby="translate-dialog-title">
+    <form id="translate-form">
+      <div class="dialog-heading"><div><p class="eyebrow">OLLAMA LOCAL</p><h2 id="translate-dialog-title">Inglês para português</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
+      <label>Texto em inglês<textarea name="text" required maxlength="12000" rows="8" placeholder="Cole aqui o texto que deseja traduzir"></textarea></label>
+      <button class="collect-button" type="submit">Traduzir para pt-BR</button>
+      <div class="translation-output" id="translation-output" aria-live="polite" hidden></div>
+    </form>
+  </dialog>
   <script src="/static/app.js" defer></script>
 </body>
 </html>

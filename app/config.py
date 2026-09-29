@@ -2,6 +2,8 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,6 +36,7 @@ class Settings(BaseSettings):
     max_request_body_bytes: int = Field(default=64_000, ge=1_024, le=1_000_000)
     cf_access_team_domain: str | None = None
     cf_access_audience: str | None = None
+    translation_default_target: Literal["pt-BR", "en"] = "pt-BR"
     collect_on_start: bool = True
     respect_robots_txt: bool = True
 

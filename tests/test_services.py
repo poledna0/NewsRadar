@@ -129,6 +129,20 @@ async def test_translation_returns_only_translated_text(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_translation_prompt_targets_english(monkeypatch):
+    prompts = []
+
+    async def fake_generate(prompt):
+        prompts.append(prompt)
+        return '{"translation": "The update is ready."}'
+
+    monkeypatch.setattr(ollama, "_generate", fake_generate)
+    result = await ollama.translate_to_language("A atualização está pronta.", "en")
+    assert result == "The update is ready."
+    assert "para inglês" in prompts[0]
+
+
+@pytest.mark.asyncio
 async def test_event_consolidation_returns_title_and_summary(monkeypatch):
     async def fake_generate(_prompt):
         return '{"title": "Falha afeta sistemas Linux", "summary": "Duas fontes relataram a falha."}'

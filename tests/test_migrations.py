@@ -36,7 +36,7 @@ def test_additive_migration_preserves_existing_article_data():
 
     ensure_schema(engine)
     columns = {column["name"] for column in inspect(engine).get_columns("articles")}
-    assert {"article_type", "translation_pt"}.issubset(columns)
+    assert {"article_type", "translation_pt", "translation_en"}.issubset(columns)
     topic_columns = {column["name"] for column in inspect(engine).get_columns("topics")}
     assert {"queries", "origin"}.issubset(topic_columns)
     with Session(engine) as session:
@@ -45,6 +45,7 @@ def test_additive_migration_preserves_existing_article_data():
         assert article.title == "Artigo antigo"
         assert article.article_type == "news"
         assert article.translation_pt is None
+        assert article.translation_en is None
         assert topic.queries == []
         assert topic.origin == "yaml"
     engine.dispose()

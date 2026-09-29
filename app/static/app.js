@@ -84,7 +84,10 @@ document.querySelector("#translate-form").addEventListener("submit", async (even
     const response = await fetch("/api/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: new FormData(form).get("text") }),
+      body: JSON.stringify({
+        text: new FormData(form).get("text"),
+        target: document.querySelector("#translation-target").value,
+      }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Tradução indisponível.");
@@ -100,9 +103,13 @@ document.querySelectorAll("[data-translate-article]").forEach((button) => {
   button.addEventListener("click", async () => {
     button.disabled = true;
     try {
-      const response = await fetch(`/api/articles/${encodeURIComponent(button.dataset.translateArticle)}/translate`, {
+      const target = document.querySelector("#translation-target").value;
+      const response = await fetch(
+        `/api/articles/${encodeURIComponent(button.dataset.translateArticle)}/translate?target=${encodeURIComponent(target)}`,
+        {
         method: "POST",
-      });
+        },
+      );
       const result = await response.json();
       if (!response.ok) throw new Error(result.detail || "Tradução indisponível.");
       window.location.reload();

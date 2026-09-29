@@ -21,7 +21,7 @@ O botao + Tema chama POST /api/topics, que valida nome/consultas e persiste no b
 
 A vista Noticias usa article_type=news. A vista Pesquisa / papers usa article_type=research. arXiv e configurado como pesquisa primaria; ScienceDaily e fontes jornalisticas sao noticias, salvo classificacao diferente.
 
-A traducao EN para pt-BR usa Ollama local. Pode traduzir texto avulso ou guardar uma traducao de titulo/resumo no artigo. A entrada e delimitada como dados no prompt, mas a traducao ainda pode conter erros: compare com o original.
+A traducao usa Ollama local para gerar pt-BR ou ingles. TRANSLATION_DEFAULT_TARGET no .env/Compose escolhe o destino inicial; o seletor no topo pode ser alterado por chamada. Texto avulso e aceito ate 12 mil caracteres. Traducoes de artigos ficam em translation_pt e translation_en, evitando repetir inferencia por idioma. A entrada e delimitada como dados no prompt, mas a traducao ainda pode conter erros: compare com o original.
 
 MODULOS
 -------

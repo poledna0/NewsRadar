@@ -49,8 +49,10 @@ button, select { cursor: pointer; }
 .brand-light { color: var(--mint); font-weight: 400; }
 .topbar-meta { display: flex; align-items: center; gap: 24px; color: var(--muted); font-size: 12px; }
 .live-indicator { display: inline-flex; align-items: center; gap: 8px; color: var(--mint); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .live-indicator i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgb(158 215 188 / 12%); }
 .topbar-count { padding-left: 21px; border-left: 1px solid var(--border); }
+.translation-target-control select { height: 34px; min-width: 78px; padding: 0 8px; border: 1px solid var(--border); border-radius: 3px; background: var(--background-raised); color: var(--text); font-size: 11px; }
 .collect-button, .apply-button {
   min-height: 36px;
   padding: 0 13px;
@@ -188,6 +190,7 @@ h2 { margin: 0; font: 500 24px/1.25 var(--font-display); }
   .topbar-meta { gap: 11px; }
   .topbar-count { display: none; }
   .live-indicator { display: none; }
+  .translation-target-control select { height: 33px; min-width: 70px; }
   .collect-button, .translate-open { min-height: 33px; width: 35px; padding: 0; }
   #collect-button span, .translate-open span { display: none; }
   .page-shell { width: calc(100% - 32px); }

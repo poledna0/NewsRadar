@@ -13,6 +13,8 @@ services:
       - ALL
     env_file:
       - .env
+    environment:
+      TRANSLATION_DEFAULT_TARGET: ${TRANSLATION_DEFAULT_TARGET:-pt-BR}
     ports:
       - "${APP_PORT:-8000}:8000"
     volumes:

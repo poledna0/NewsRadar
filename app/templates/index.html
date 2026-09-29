@@ -16,6 +16,13 @@
     <div class="topbar-meta">
       <span class="live-indicator"><i></i> Radar ativo</span>
       <span class="topbar-count">{{ total_articles }} artigos</span>
+      <label class="translation-target-control" title="Idioma das traduções">
+        <span class="sr-only">Idioma da tradução</span>
+        <select id="translation-target" aria-label="Idioma da tradução">
+          <option value="pt-BR" {% if translation_default_target == 'pt-BR' %}selected{% endif %}>pt-BR</option>
+          <option value="en" {% if translation_default_target == 'en' %}selected{% endif %}>English</option>
+        </select>
+      </label>
       <button class="translate-open" id="translate-open" type="button" aria-label="Traduzir texto" title="Traduzir texto">Aa <span>Traduzir</span></button>
       <button class="collect-button" id="collect-button" type="button" aria-label="Coletar agora" title="Coletar agora">↻ <span>Coletar</span></button>
     </div>
@@ -142,6 +149,7 @@
             <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
             <p class="news-summary">{{ article.summary or article.description or 'Conteúdo original indisponível para extração. Acesse a fonte para ler a matéria.' }}</p>
             {% if article.translation_pt %}<p class="translation-result"><strong>Tradução pt-BR</strong><br>{{ article.translation_pt }}</p>{% endif %}
+            {% if article.translation_en %}<p class="translation-result"><strong>English translation</strong><br>{{ article.translation_en }}</p>{% endif %}
             {% if article.related_sources %}
             <div class="related-links">
               {% for source in article.related_sources %}
@@ -152,7 +160,7 @@
             <div class="article-footer">
               <span>{{ article.source_name or article.source_domain }}</span>
               <time>{% if article.published_at %}{{ article.published_at.strftime('%d/%m/%Y · %H:%M') }}{% else %}Descoberta {{ article.discovered_at.strftime('%d/%m · %H:%M') }}{% endif %}</time>
-              {% if article.summary %}<button class="translate-article" type="button" data-translate-article="{{ article.id }}">{% if article.translation_pt %}Ver tradução{% else %}Traduzir resumo{% endif %}</button>{% endif %}
+              {% if article.summary %}<button class="translate-article" type="button" data-translate-article="{{ article.id }}">Traduzir resumo</button>{% endif %}
               <a class="original-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">Ler notícia original <span aria-hidden="true">↗</span></a>
             </div>
           </div>
@@ -182,9 +190,9 @@
   </dialog>
   <dialog class="action-dialog translate-dialog" id="translate-dialog" aria-labelledby="translate-dialog-title">
     <form id="translate-form">
-      <div class="dialog-heading"><div><p class="eyebrow">OLLAMA LOCAL</p><h2 id="translate-dialog-title">Inglês para português</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
-      <label>Texto em inglês<textarea name="text" required maxlength="12000" rows="8" placeholder="Cole aqui o texto que deseja traduzir"></textarea></label>
-      <button class="collect-button" type="submit">Traduzir para pt-BR</button>
+      <div class="dialog-heading"><div><p class="eyebrow">OLLAMA LOCAL</p><h2 id="translate-dialog-title">Traduzir texto</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
+      <label>Texto de origem<textarea name="text" required maxlength="12000" rows="8" placeholder="Cole aqui o texto que deseja traduzir"></textarea></label>
+      <button class="collect-button" type="submit">Traduzir</button>
       <div class="translation-output" id="translation-output" aria-live="polite" hidden></div>
     </form>
   </dialog>

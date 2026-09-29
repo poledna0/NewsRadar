@@ -31,6 +31,7 @@ def ensure_schema(target_engine=engine) -> None:
         "articles": {
             "article_type": "VARCHAR(20) NOT NULL DEFAULT 'news'",
             "translation_pt": "TEXT",
+            "translation_en": "TEXT",
         },
         "topics": {
             "queries": "JSON NOT NULL DEFAULT '[]'",

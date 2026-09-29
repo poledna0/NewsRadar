@@ -8,6 +8,7 @@ from app.database import Base, get_db
 from app import main
 from app.main import app
 from app.config import get_settings
+from app.models import Article
 
 
 @pytest.fixture
@@ -22,6 +23,7 @@ def client(monkeypatch):
     monkeypatch.setattr(get_settings(), "collect_on_start", False)
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app, base_url="http://127.0.0.1") as test_client:
+        test_client.app.state.test_engine = engine
         yield test_client
     app.dependency_overrides.clear()
     engine.dispose()
@@ -66,13 +68,53 @@ def test_cross_site_write_is_rejected(client):
 
 
 def test_translation_endpoint_uses_local_translation_service(client, monkeypatch):
-    async def fake_translation(_text):
+    async def fake_translation(_text, target):
+        assert target == "pt-BR"
         return "Tradução segura"
 
-    monkeypatch.setattr(main, "translate_to_pt_br", fake_translation)
+    monkeypatch.setattr(main, "translate_to_language", fake_translation)
     response = client.post("/api/translate", json={"text": "A short English paragraph."})
     assert response.status_code == 200
-    assert response.json() == {"translation": "Tradução segura"}
+    assert response.json() == {"translation": "Tradução segura", "target": "pt-BR"}
+
+
+def test_translation_endpoint_accepts_english_target(client, monkeypatch):
+    async def fake_translation(_text, target):
+        assert target == "en"
+        return "Translated into English"
+
+    monkeypatch.setattr(main, "translate_to_language", fake_translation)
+    response = client.post("/api/translate", json={"text": "Um parágrafo curto.", "target": "en"})
+    assert response.status_code == 200
+    assert response.json() == {"translation": "Translated into English", "target": "en"}
+
+
+def test_article_translation_is_cached_separately_per_target(client, monkeypatch):
+    with Session(client.app.state.test_engine) as session:
+        article = Article(
+            url="https://example.org/translation-test",
+            canonical_url="https://example.org/translation-test",
+            title="A short article",
+            summary="The story is ready.",
+        )
+        session.add(article)
+        session.commit()
+        article_id = article.id
+
+    calls = []
+
+    async def fake_translation(_text, target):
+        calls.append(target)
+        return f"translation-{target}"
+
+    monkeypatch.setattr(main, "translate_to_language", fake_translation)
+    english = client.post(f"/api/articles/{article_id}/translate?target=en")
+    english_again = client.post(f"/api/articles/{article_id}/translate?target=en")
+    portuguese = client.post(f"/api/articles/{article_id}/translate?target=pt-BR")
+    assert english.json() == {"translation": "translation-en", "target": "en"}
+    assert english_again.json() == english.json()
+    assert portuguese.json() == {"translation": "translation-pt-BR", "target": "pt-BR"}
+    assert calls == ["en", "pt-BR"]
 
 
 def test_security_headers_are_present(client):

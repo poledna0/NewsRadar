@@ -20,7 +20,7 @@ from app.database import SessionLocal, engine, ensure_schema, get_db
 from app.models import Article, ProcessingRun, Source, Topic
 from app.schemas import ArticleListOut, ArticleOut, SourceOut, TopicCreate, TopicOut, TranslationOut, TranslationRequest
 from app.services.pipeline import collect_news, process_pending_articles, sync_topics
-from app.services.ollama import translate_to_pt_br
+from app.services.ollama import translate_to_language
 from app.services.cloudflare_access import verify_access_token
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
@@ -136,6 +136,7 @@ def article_dict(article: Article) -> dict:
         "category": article.category,
         "article_type": article.article_type,
         "translation_pt": article.translation_pt,
+        "translation_en": article.translation_en,
         "relevance_score": article.relevance_score,
         "language": article.language,
         "image_url": article.image_url,
@@ -249,31 +250,39 @@ def disable_topic(topic_id: int, request: Request, session: Session = Depends(ge
 @app.post("/api/translate", response_model=TranslationOut)
 async def translate_text(payload: TranslationRequest, request: Request):
     protect_write(request, "translate", limit=10, window_seconds=60)
+    target = payload.target or get_settings().translation_default_target
     try:
-        return {"translation": await translate_to_pt_br(payload.text)}
+        return {"translation": await translate_to_language(payload.text, target), "target": target}
     except Exception as error:
         logger.warning("Translation unavailable: %s", error)
         raise HTTPException(status_code=503, detail="translation is temporarily unavailable") from error
 
 
 @app.post("/api/articles/{article_id}/translate", response_model=TranslationOut)
-async def translate_article(article_id: int, request: Request, session: Session = Depends(get_db)):
+async def translate_article(
+    article_id: int,
+    request: Request,
+    target: str | None = Query(default=None, pattern="^(pt-BR|en)$"),
+    session: Session = Depends(get_db),
+):
     protect_write(request, "translate", limit=10, window_seconds=60)
     article = session.get(Article, article_id)
     if article is None:
         raise HTTPException(status_code=404, detail="article not found")
-    if not article.translation_pt:
+    target = target or get_settings().translation_default_target
+    translation_field = "translation_pt" if target == "pt-BR" else "translation_en"
+    if not getattr(article, translation_field):
         source = f"{article.title}\n\n{article.summary or article.description or ''}".strip()
         if not source:
             raise HTTPException(status_code=422, detail="article has no text to translate")
         try:
-            article.translation_pt = await translate_to_pt_br(source[:12_000])
+            setattr(article, translation_field, await translate_to_language(source[:12_000], target))
             session.commit()
         except Exception as error:
             session.rollback()
             logger.warning("Article translation unavailable for %s: %s", article_id, error)
             raise HTTPException(status_code=503, detail="translation is temporarily unavailable") from error
-    return {"translation": article.translation_pt}
+    return {"translation": getattr(article, translation_field), "target": target}
 
 
 @app.get("/api/sources", response_model=list[SourceOut])
@@ -349,6 +358,7 @@ def home(
             "sources": session.scalars(select(Source.domain).where(Source.domain.is_not(None)).distinct().order_by(Source.domain)).all(),
             "selected_topic": topic,
             "selected_kind": kind,
+            "translation_default_target": get_settings().translation_default_target,
             "selected_hours": hours,
             "selected_source": source,
             "search": search or "",

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,10 +24,12 @@ class TopicCreate(BaseModel):
 
 class TranslationRequest(BaseModel):
     text: str = Field(min_length=1, max_length=12_000)
+    target: Literal["pt-BR", "en"] | None = None
 
 
 class TranslationOut(BaseModel):
     translation: str
+    target: Literal["pt-BR", "en"]
 
 
 class SourceOut(BaseModel):
@@ -56,6 +59,7 @@ class ArticleOut(BaseModel):
     category: str | None
     article_type: str
     translation_pt: str | None
+    translation_en: str | None
     relevance_score: int
     language: str | None
     image_url: str | None

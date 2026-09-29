@@ -44,6 +44,7 @@ class Article(Base):
     category: Mapped[str | None] = mapped_column(String(120))
     article_type: Mapped[str] = mapped_column(String(20), default="news")
     translation_pt: Mapped[str | None] = mapped_column(Text)
+    translation_en: Mapped[str | None] = mapped_column(Text)
     relevance_score: Mapped[int] = mapped_column(Integer, default=0)
     language: Mapped[str | None] = mapped_column(String(12))
     image_url: Mapped[str | None] = mapped_column(Text)

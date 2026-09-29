@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reportar vulnerabilidade em privado
+    url: https://github.com/poledna0/NewsRadar/security/advisories/new
+    about: Não publique detalhes exploráveis em uma issue pública. Consulte SECURITY.md.
+  - name: Documentação e instalação
+    url: https://github.com/poledna0/NewsRadar/tree/main/docs
+    about: Consulte os guias de instalação, SearXNG e auditoria antes de abrir uma dúvida.

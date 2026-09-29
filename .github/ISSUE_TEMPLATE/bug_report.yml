@@ -1,0 +1,31 @@
+name: Relatar bug
+description: Reporte um comportamento inesperado do NewsRadar
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Antes de abrir, procure issues existentes. Não inclua senhas, tokens, URLs privadas ou dados pessoais.
+  - type: input
+    id: version
+    attributes:
+      label: Commit ou versão
+      placeholder: SHA do commit ou tag
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: O que você esperava?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: O que aconteceu?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs relevantes (remova dados sensíveis)

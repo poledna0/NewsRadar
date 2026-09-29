@@ -1,0 +1,53 @@
+NEWSRADAR - GUIA DO CODIGO
+==========================
+
+Este guia explica o fluxo antes da leitura dos modulos. Para instalar e operar, consulte README.md. O sistema e self-hosted: SQLite e configuracao ficam no host; SearXNG e Ollama sao servicos externos.
+
+FLUXO PRINCIPAL
+---------------
+1. config.yaml fornece os temas iniciais. Temas adicionados pela interface ficam no SQLite.
+2. A cada 30 minutos, o APScheduler chama collect_news() em app/services/pipeline.py.
+3. Para cada tema, search.py consulta SearXNG nas categorias news e science. rss.py tambem le cada feed de sources.yaml. Consultas e feeds tem limites separados.
+4. O pipeline normaliza URLs, descarta URLs ja conhecidas e compara titulos antes de chamar IA.
+5. extractor.py consulta robots.txt e baixa a pagina pelo transporte de http.py. Trafilatura extrai texto e metadados; quando um site bloqueia acesso, titulo/descricao/feed continuam guardados.
+6. O artigo e gravado no SQLite com estado pending_ai.
+7. Ollama classifica relevancia, topicos e tipo. Papers/preprints primarios ficam separados de noticias que apenas relatam uma pesquisa. Resumo e classificacao sao chamadas distintas.
+8. Um job menor tenta processar ate 50 pendencias a cada 5 minutos. Ele compartilha o lock da coleta para nao sobrecarregar Ollama.
+9. main.py expoe API e paginas Jinja. app/static/app.js envia formularios same-origin; respostas de modelos sao inseridas como texto, nunca como HTML.
+
+TEMAS E TRADUCAO
+-----------------
+O botao + Tema chama POST /api/topics, que valida nome/consultas e persiste no banco. Desativar um tema preserva historico; adicionar novamente o mesmo nome o reativa.
+
+A vista Noticias usa article_type=news. A vista Pesquisa / papers usa article_type=research. arXiv e configurado como pesquisa primaria; ScienceDaily e fontes jornalisticas sao noticias, salvo classificacao diferente.
+
+A traducao EN para pt-BR usa Ollama local. Pode traduzir texto avulso ou guardar uma traducao de titulo/resumo no artigo. A entrada e delimitada como dados no prompt, mas a traducao ainda pode conter erros: compare com o original.
+
+MODULOS
+-------
+app/main.py: inicializacao, migracoes, API, filtros, TrustedHost, CSP, validacao de origem e rate limit.
+app/config.py: variaveis .env e leitura de YAML com limites Pydantic.
+app/database.py e app/models.py: SQLAlchemy, tabelas e migracao SQLite aditiva.
+app/services/search.py e rss.py: adaptadores de descoberta.
+app/services/http.py: timeout, limite de bytes, redirect manual e resolver que fixa o socket em IP publico.
+app/services/extractor.py: robots.txt e extracao de artigo.
+app/services/deduplicator.py: canonicalizacao de URLs e similaridade convencional.
+app/services/ollama.py: prompts de classificacao, resumo, consolidacao e traducao.
+app/services/cloudflare_access.py: validacao opcional de JWT RS256 quando as duas variaveis Access forem configuradas.
+app/templates/ e app/static/: interface web sem framework pesado.
+tests/: testes de API, seguranca, RSS, SQLite, migracao e Ollama simulado.
+
+SEGURANCA: O QUE COBRE E O QUE NAO COBRE
+----------------------------------------
+O scraper aceita somente HTTP/HTTPS e rejeita credenciais, DNS para IPs privados, respostas acima de MAX_HTTP_RESPONSE_BYTES e redirects que falhem a mesma validacao. SearXNG/Ollama sao URLs administrativas em .env e nao sao aceitas como parametros publicos.
+
+A interface define CSP, TrustedHost, limites de corpo, nosniff, frame protection, validacao Origin/Referer e rate-limit para escritas. O processo do container e nao-root e a raiz e somente leitura.
+
+Sem CF_ACCESS_TEAM_DOMAIN e CF_ACCESS_AUDIENCE, o app nao verifica identidade Cloudflare. A porta da origem ainda pode ser alcancada diretamente pela LAN; restrinja-a ao tunnel/firewall quando configurar Access. O rate limit em memoria pressupoe um unico worker. LLM pode sofrer prompt injection e inventar/classificar errado; nao trate a saida como fonte primaria.
+
+AUDITAR UMA MUDANCA
+-------------------
+Comece na rota de main.py ou no controle de index.html. Siga payload -> schema Pydantic -> servico -> modelo. Para rede, confirme DNS, protocolo, redirects, timeout e tamanho. Para banco, examine ensure_schema() e adicione um teste que mantenha os dados antigos. Para IA, revise o prompt e a validacao do JSON.
+
+Validacao local: pip install -r requirements-dev.txt && pytest -q
+Validacao Docker: docker compose logs -f newsradar; consulte /health e /api/stats.

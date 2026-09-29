@@ -18,6 +18,7 @@ async def _generate(prompt: str) -> str:
                 "prompt": prompt,
                 "stream": False,
                 "format": "json",
+                "think": False,
                 "options": {"temperature": 0.1},
             },
         )

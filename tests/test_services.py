@@ -59,6 +59,34 @@ def test_article_storage_round_trip():
 
 
 @pytest.mark.asyncio
+async def test_ollama_generation_disables_thinking(monkeypatch):
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"response": '{"ok": true}'}
+
+    class FakeClient:
+        payload = None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, _url, json):
+            self.payload = json
+            return FakeResponse()
+
+    fake_client = FakeClient()
+    monkeypatch.setattr(ollama.httpx, "AsyncClient", lambda **_kwargs: fake_client)
+    assert await ollama._generate("prompt") == '{"ok": true}'
+    assert fake_client.payload["think"] is False
+
+
+@pytest.mark.asyncio
 async def test_classification_limits_topics_and_score(monkeypatch):
     async def fake_generate(_prompt):
         return '{"relevance_score": 120, "category": "linux", "topics": ["Linux", "fora"], "important": true}'

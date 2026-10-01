@@ -92,6 +92,12 @@ Each topic triggers limited news searches and one additional research search. Li
 
 Default feeds favor openly readable sources: security publications, project/newsroom feeds, public advisories and arXiv. Known subscription domains are listed in `EXCLUDED_DOMAINS`; new results from those domains are skipped and historical articles are hidden from lists without deleting database rows. This is a best-effort domain filter, not a guarantee that every other page has full text. NewsRadar respects robots.txt and never bypasses paywalls.
 
+After adding or changing feeds, audit the configured endpoints and confirm which ones return parseable entries:
+
+```sh
+docker compose exec newsradar python -m app.services.feed_audit
+```
+
 ## Browse the archive
 
 The home page opens on the latest day. Use the horizontal day archive to select any date or **All days**; each view is paginated in groups of 30, with numbered pages and previous/next controls. Filters remain applied while browsing. `GET /api/articles` also accepts `day=YYYY-MM-DD`, `limit` and `offset`.

@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app.models import Article
-from app.services import ollama, rss
+from app.services import feed_audit, ollama, rss
 from app.services.deduplicator import find_title_duplicate, normalize_title, normalize_url, title_similarity
 from app.services.http import PublicResolver, validate_public_url
 from app.services.source_policy import is_excluded_domain
@@ -215,3 +215,30 @@ async def test_broken_rss_returns_empty_list(monkeypatch):
 
     monkeypatch.setattr(rss, "get_public_response", broken_request)
     assert await rss.read_feed({"name": "Offline", "url": "https://example.org/rss"}) == []
+
+
+@pytest.mark.asyncio
+async def test_feed_audit_isolates_one_unavailable_source(monkeypatch):
+    async def fake_response(url, attempts):
+        if "broken" in url:
+            raise RuntimeError("HTTP 404")
+        return SimpleNamespace(content=b"<rss />")
+
+    class FakeFeed:
+        entries = [{"title": "Readable feed item"}]
+
+    monkeypatch.setattr(feed_audit, "get_public_response", fake_response)
+    monkeypatch.setattr(feed_audit.feedparser, "parse", lambda _content: FakeFeed())
+    monkeypatch.setattr(
+        feed_audit,
+        "get_settings",
+        lambda: SimpleNamespace(
+            excluded_domain_list=[],
+            feeds=lambda: [
+                {"name": "Working", "url": "https://example.org/rss"},
+                {"name": "Broken", "url": "https://broken.example.org/rss"},
+            ],
+        ),
+    )
+    results = await feed_audit.audit_feeds()
+    assert [result[1] for result in results] == ["ok", "unavailable (RuntimeError)"]

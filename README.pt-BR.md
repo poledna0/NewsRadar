@@ -92,6 +92,12 @@ Cada tema gera consultas limitadas de notícias e uma busca científica adiciona
 
 Os feeds padrão priorizam fontes com conteúdo aberto, como publicações de segurança, feeds de projetos/redações, avisos públicos e arXiv. Domínios conhecidos por exigir assinatura ficam em `EXCLUDED_DOMAINS`; novos resultados desses domínios são ignorados e artigos históricos são ocultados das listas sem apagar linhas do banco. A lista é uma filtragem por domínio, não uma garantia de texto integral para toda página restante. O NewsRadar respeita robots.txt e nunca contorna paywalls.
 
+Depois de adicionar ou alterar feeds, audite os endpoints configurados e confirme quais retornam itens legíveis:
+
+```sh
+docker compose exec newsradar python -m app.services.feed_audit
+```
+
 ## Navegue pelo arquivo
 
 A página inicial abre no dia mais recente. Use a faixa de dias para escolher qualquer data ou **Todos os dias**; cada vista é paginada em blocos de 30 com números e controles anterior/próxima. Os filtros continuam ativos durante a navegação. `GET /api/articles` também aceita `day=YYYY-MM-DD`, `limit` e `offset`.

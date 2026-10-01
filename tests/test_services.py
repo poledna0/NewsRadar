@@ -241,4 +241,4 @@ async def test_feed_audit_isolates_one_unavailable_source(monkeypatch):
         ),
     )
     results = await feed_audit.audit_feeds()
-    assert [result[1] for result in results] == ["ok", "unavailable (RuntimeError)"]
+    assert [result[1] for result in results] == ["ok", "unavailable (HTTP 404)"]

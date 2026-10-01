@@ -59,7 +59,7 @@ def test_daily_archive_paginates_all_articles_for_a_day(client):
 
     second_page = client.get("/?day=2026-09-28&page=2&kind=news")
     assert second_page.status_code == 200
-    assert "Página 2 / 2 · 5 resultados" in second_page.text
+    assert "Página 2 / 2 · 35 resultados" in second_page.text
     assert second_page.text.count('class="news-item"') == 5
     filtered_api = client.get("/api/articles?day=2026-09-28&kind=news&limit=100")
     assert filtered_api.json()["total"] == 35

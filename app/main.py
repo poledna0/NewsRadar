@@ -365,7 +365,7 @@ def home(
     sort: str = Query(default="date", pattern="^(date|relevance)$"),
     view: str = Query(default="latest", pattern="^(latest|events)$"),
     kind: str = Query(default="news", pattern="^(news|research)$"),
-    day: str = Query(default="latest", pattern="^(latest|all|\d{4}-\d{2}-\d{2})$"),
+    day: str = Query(default="latest", pattern=r"^(latest|all|\d{4}-\d{2}-\d{2})$"),
     page: int = Query(default=1, ge=1, le=100_000),
     session: Session = Depends(get_db),
 ):

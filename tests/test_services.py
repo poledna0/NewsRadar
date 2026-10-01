@@ -11,6 +11,7 @@ from app.models import Article
 from app.services import ollama, rss
 from app.services.deduplicator import find_title_duplicate, normalize_title, normalize_url, title_similarity
 from app.services.http import PublicResolver, validate_public_url
+from app.services.source_policy import is_excluded_domain
 
 
 def test_url_normalization_removes_tracking_and_fragment():
@@ -42,6 +43,13 @@ def test_title_similarity_groups_small_variations():
 def test_private_article_urls_are_rejected():
     assert not __import__("asyncio").run(validate_public_url("http://127.0.0.1/article"))
     assert not __import__("asyncio").run(validate_public_url("file:///tmp/article"))
+
+
+def test_subscription_domain_policy_matches_subdomains():
+    blocked = ["example-paywall.com"]
+    assert is_excluded_domain("example-paywall.com", blocked)
+    assert is_excluded_domain("www.example-paywall.com", blocked)
+    assert not is_excluded_domain("free.example.org", blocked)
 
 
 @pytest.mark.asyncio

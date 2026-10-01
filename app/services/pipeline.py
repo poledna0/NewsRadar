@@ -16,6 +16,7 @@ from app.services.extractor import extract_article
 from app.services.ollama import process_article
 from app.services.rss import read_feed
 from app.services.search import search_topic
+from app.services.source_policy import is_excluded_domain
 
 logger = logging.getLogger(__name__)
 _collection_lock = asyncio.Lock()
@@ -99,6 +100,10 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
         counters["errors"] += 1
         return
     domain = urlsplit(canonical_url).hostname
+    if is_excluded_domain(domain, get_settings().excluded_domain_list):
+        counters["excluded_domain"] = counters.get("excluded_domain", 0) + 1
+        logger.info("Skipping subscription-based source domain: %s", domain)
+        return
     _record_discovered_source(session, item.get("source_name") or domain or "Fonte desconhecida", domain)
     existing = session.scalar(select(Article).where(Article.canonical_url == canonical_url))
     if existing:

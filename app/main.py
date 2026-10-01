@@ -1,10 +1,11 @@
 import asyncio
 import ipaddress
 import logging
+import math
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
-from urllib.parse import urlsplit
+from datetime import date, datetime, timedelta, timezone
+from urllib.parse import urlencode, urlsplit
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -22,6 +23,7 @@ from app.schemas import ArticleListOut, ArticleOut, SourceOut, TopicCreate, Topi
 from app.services.pipeline import collect_news, process_pending_articles, sync_topics
 from app.services.ollama import translate_to_language
 from app.services.cloudflare_access import verify_access_token
+from app.services.source_policy import is_excluded_domain
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -141,7 +143,13 @@ def article_dict(article: Article) -> dict:
         "language": article.language,
         "image_url": article.image_url,
         "processing_status": article.processing_status,
-        "related_sources": article.related_sources or [],
+        "related_sources": [
+            source
+            for source in (article.related_sources or [])
+            if not is_excluded_domain(
+                urlsplit(source.get("url") or "").hostname, get_settings().excluded_domain_list
+            )
+        ],
         "topics": [topic.name for topic in article.topics],
     }
 
@@ -154,6 +162,7 @@ def article_query(
     search: str | None,
     events_only: bool = False,
     article_type: str | None = None,
+    published_day: str | None = None,
 ):
     query = select(Article).options(selectinload(Article.topics))
     if topic:
@@ -167,8 +176,16 @@ def article_query(
         query = query.where((Article.title.ilike(term)) | (Article.description.ilike(term)) | (Article.summary.ilike(term)))
     if article_type:
         query = query.where(Article.article_type == article_type)
+    for domain in get_settings().excluded_domain_list:
+        host = func.lower(func.coalesce(Article.source_domain, ""))
+        query = query.where(host != domain, ~host.endswith(f".{domain}"))
+    if published_day:
+        query = query.where(func.date(func.coalesce(Article.published_at, Article.discovered_at)) == published_day)
     if events_only:
         query = query.where(Article.related_sources.is_not(None)).where(Article.related_sources != [])
+    for domain in get_settings().excluded_domain_list:
+        hostname = func.lower(func.coalesce(Article.source_domain, ""))
+        query = query.where(hostname != domain, ~hostname.endswith(f".{domain}"))
     return query
 
 
@@ -186,6 +203,7 @@ def health(session: Session = Depends(get_db)):
 def list_articles(
     topic: str | None = None,
     hours: int | None = Query(default=None, ge=1, le=720),
+    day: date | None = None,
     source: str | None = None,
     search: str | None = Query(default=None, max_length=200),
     kind: str | None = Query(default=None, pattern="^(news|research)$"),
@@ -194,7 +212,15 @@ def list_articles(
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_db),
 ):
-    query = article_query(session, topic, hours, source, search, article_type=kind)
+    query = article_query(
+        session,
+        topic,
+        hours,
+        source,
+        search,
+        article_type=kind,
+        published_day=day.isoformat() if day else None,
+    )
     total = session.scalar(select(func.count()).select_from(query.order_by(None).subquery())) or 0
     if sort == "relevance":
         query = query.order_by(Article.relevance_score.desc(), Article.discovered_at.desc())
@@ -208,6 +234,8 @@ def list_articles(
 def get_article(article_id: int, session: Session = Depends(get_db)):
     article = session.scalar(select(Article).options(selectinload(Article.topics)).where(Article.id == article_id))
     if article is None:
+        raise HTTPException(status_code=404, detail="article not found")
+    if is_excluded_domain(article.source_domain, get_settings().excluded_domain_list):
         raise HTTPException(status_code=404, detail="article not found")
     return article_dict(article)
 
@@ -287,7 +315,12 @@ async def translate_article(
 
 @app.get("/api/sources", response_model=list[SourceOut])
 def list_sources(session: Session = Depends(get_db)):
-    return session.scalars(select(Source).order_by(Source.name)).all()
+    sources = session.scalars(select(Source).order_by(Source.name)).all()
+    return [
+        source
+        for source in sources
+        if not is_excluded_domain(source.domain, get_settings().excluded_domain_list)
+    ]
 
 
 @app.post("/api/collect")
@@ -332,28 +365,109 @@ def home(
     sort: str = Query(default="date", pattern="^(date|relevance)$"),
     view: str = Query(default="latest", pattern="^(latest|events)$"),
     kind: str = Query(default="news", pattern="^(news|research)$"),
+    day: str = Query(default="latest", pattern="^(latest|all|\d{4}-\d{2}-\d{2})$"),
+    page: int = Query(default=1, ge=1, le=100_000),
     session: Session = Depends(get_db),
 ):
+    page_size = 30
+    day_expression = func.date(func.coalesce(Article.published_at, Article.discovered_at))
+    day_query = select(day_expression, func.count(Article.id)).where(Article.article_type == kind)
+    for domain in get_settings().excluded_domain_list:
+        hostname = func.lower(func.coalesce(Article.source_domain, ""))
+        day_query = day_query.where(hostname != domain, ~hostname.endswith(f".{domain}"))
+    day_rows = session.execute(day_query.group_by(day_expression).order_by(day_expression.desc())).all()
+    day_choices = [
+        {
+            "value": day_value,
+            "label": date.fromisoformat(day_value).strftime("%d/%m/%Y"),
+            "count": count,
+        }
+        for day_value, count in day_rows
+        if day_value
+    ]
+    selected_day = day_choices[0]["value"] if day == "latest" and day_choices else None
+    if day not in {"latest", "all"}:
+        selected_day = day
+
     selected_query = article_query(
-        session, topic, hours, source, search, events_only=view == "events", article_type=kind
+        session,
+        topic,
+        hours,
+        source,
+        search,
+        events_only=view == "events",
+        article_type=kind,
+        published_day=selected_day,
     )
+    total = session.scalar(select(func.count()).select_from(selected_query.order_by(None).subquery())) or 0
+    total_pages = max(1, math.ceil(total / page_size))
+    page = min(page, total_pages)
     if sort == "relevance":
         selected_query = selected_query.order_by(Article.relevance_score.desc(), Article.discovered_at.desc())
     else:
-        selected_query = selected_query.order_by(Article.published_at.desc().nullslast(), Article.discovered_at.desc())
-    latest = session.scalars(selected_query.limit(60)).unique().all()
-    highlights = session.scalars(
-        article_query(session, topic, hours, source, search, article_type=kind)
-        .where(Article.relevance_score >= 60)
-        .order_by(Article.relevance_score.desc(), Article.discovered_at.desc())
-        .limit(4)
-    ).unique().all()
+        selected_query = selected_query.order_by(
+            func.coalesce(Article.published_at, Article.discovered_at).desc()
+        )
+    latest = session.scalars(selected_query.offset((page - 1) * page_size).limit(page_size)).unique().all()
+    highlights = []
+    if page == 1:
+        highlights = session.scalars(
+            article_query(
+                session,
+                topic,
+                hours,
+                source,
+                search,
+                article_type=kind,
+                published_day=selected_day,
+            )
+            .where(Article.relevance_score >= 60)
+            .order_by(Article.relevance_score.desc(), Article.discovered_at.desc())
+            .limit(4)
+        ).unique().all()
+    filters = {"view": view, "kind": kind, "sort": sort, "page": page}
+    if selected_day:
+        filters["day"] = selected_day
+    if topic:
+        filters["topic"] = topic
+    if hours:
+        filters["hours"] = hours
+    if source:
+        filters["source"] = source
+    if search:
+        filters["search"] = search
+    pagination_base = {key: value for key, value in filters.items() if key != "page"}
+    all_days_base = {key: value for key, value in pagination_base.items() if key != "day"}
+    archive_links = [
+        {
+            **choice,
+            "url": "/?" + urlencode({**all_days_base, "day": choice["value"], "page": 1}),
+        }
+        for choice in day_choices
+    ]
+    page_links = [
+        {"number": number, "url": "/?" + urlencode({**pagination_base, "page": number})}
+        for number in range(max(1, page - 2), min(total_pages, page + 2) + 1)
+    ]
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
             "articles": latest,
             "highlights": highlights,
+            "archive_links": archive_links,
+            "all_days_url": "/?" + urlencode({**all_days_base, "day": "all", "page": 1}),
+            "selected_day": selected_day or "all",
+            "selected_day_label": next(
+                (choice["label"] for choice in day_choices if choice["value"] == selected_day), None
+            ),
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "total_filtered": total,
+            "page_links": page_links,
+            "previous_page_url": "/?" + urlencode({**pagination_base, "page": page - 1}) if page > 1 else None,
+            "next_page_url": "/?" + urlencode({**pagination_base, "page": page + 1}) if page < total_pages else None,
             "topics": session.scalars(select(Topic).where(Topic.enabled.is_(True)).order_by(Topic.name)).all(),
             "sources": session.scalars(select(Source.domain).where(Source.domain.is_not(None)).distinct().order_by(Source.domain)).all(),
             "selected_topic": topic,

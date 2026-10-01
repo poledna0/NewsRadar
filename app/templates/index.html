@@ -32,7 +32,7 @@
     <section class="page-heading">
       <div>
         <p class="eyebrow">SEU PAINEL DE INFORMAÇÃO</p>
-        <h1>{% if view == 'events' %}Em destaque{% elif selected_kind == 'research' %}Pesquisa / papers{% else %}Últimas notícias{% endif %}</h1>
+        <h1>{% if view == 'events' %}Em destaque{% elif selected_kind == 'research' %}Pesquisa / papers{% else %}Últimas notícias{% endif %}{% if selected_day_label %} · {{ selected_day_label }}{% endif %}</h1>
         <p class="heading-note">Sinais relevantes, reunidos de fontes independentes.</p>
       </div>
       <div class="heading-status">
@@ -60,10 +60,20 @@
       <a class="kind-link {% if selected_kind == 'research' %}active{% endif %}" href="/?kind=research&view={{ view }}{% if selected_topic %}&topic={{ selected_topic|urlencode }}{% endif %}">Pesquisa / papers</a>
     </nav>
 
+    <nav class="day-nav" aria-label="Arquivo por dia">
+      <a class="day-link {% if selected_day == 'all' %}active{% endif %}" href="{{ all_days_url }}">Todos os dias</a>
+      {% for archive_day in archive_links %}
+        <a class="day-link {% if selected_day == archive_day.value %}active{% endif %}" href="{{ archive_day.url }}">
+          <span>{{ archive_day.label }}</span><small>{{ archive_day.count }}</small>
+        </a>
+      {% endfor %}
+    </nav>
+
     <form class="filter-bar" method="get" action="/">
       <input type="hidden" name="view" value="{{ view }}">
       {% if selected_topic %}<input type="hidden" name="topic" value="{{ selected_topic }}">{% endif %}
       {% if selected_kind %}<input type="hidden" name="kind" value="{{ selected_kind }}">{% endif %}
+      <input type="hidden" name="day" value="{{ selected_day }}">
       <label class="search-box">
         <span aria-hidden="true">⌕</span>
         <input type="search" name="search" value="{{ search }}" placeholder="Buscar notícias" aria-label="Buscar notícias">
@@ -130,7 +140,7 @@
           <p class="eyebrow">{% if view == 'events' %}COBERTURA CRUZADA{% else %}FLUXO RECENTE{% endif %}</p>
           <h2 id="news-heading">{% if view == 'events' %}Acontecimentos em várias fontes{% else %}Últimas notícias{% endif %}</h2>
         </div>
-        <span class="section-count">{{ articles|length }} resultados</span>
+        <span class="section-count">Página {{ page }} / {{ total_pages }} · {{ total_filtered }} resultados</span>
       </div>
       {% if articles %}
       <div class="news-list">
@@ -167,6 +177,15 @@
         </article>
         {% endfor %}
       </div>
+      {% if total_pages > 1 %}
+      <nav class="pagination" aria-label="Paginação de notícias">
+        {% if previous_page_url %}<a class="page-step" href="{{ previous_page_url }}" rel="prev">‹ Anterior</a>{% else %}<span class="page-step disabled">‹ Anterior</span>{% endif %}
+        <div class="page-numbers">
+          {% for item in page_links %}<a class="page-number {% if item.number == page %}active{% endif %}" href="{{ item.url }}" {% if item.number == page %}aria-current="page"{% endif %}>{{ item.number }}</a>{% endfor %}
+        </div>
+        {% if next_page_url %}<a class="page-step" href="{{ next_page_url }}" rel="next">Próxima ›</a>{% else %}<span class="page-step disabled">Próxima ›</span>{% endif %}
+      </nav>
+      {% endif %}
       {% else %}
       <div class="empty-state">
         <span class="empty-mark" aria-hidden="true">N</span>

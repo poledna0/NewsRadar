@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -40,6 +42,55 @@ def test_articles_api_returns_empty_page(client):
     assert response.status_code == 200
     assert response.json()["items"] == []
     assert client.get("/api/articles?kind=research").json()["items"] == []
+
+
+def test_daily_archive_paginates_all_articles_for_a_day(client):
+    with Session(client.app.state.test_engine) as session:
+        for index in range(35):
+            session.add(
+                Article(
+                    url=f"https://example.org/archive/{index}",
+                    canonical_url=f"https://example.org/archive/{index}",
+                    title=f"Daily article {index}",
+                    published_at=datetime(2026, 9, 28, 12, index, tzinfo=timezone.utc),
+                )
+            )
+        session.commit()
+
+    second_page = client.get("/?day=2026-09-28&page=2&kind=news")
+    assert second_page.status_code == 200
+    assert "Página 2 / 2 · 5 resultados" in second_page.text
+    assert second_page.text.count('class="news-item"') == 5
+    filtered_api = client.get("/api/articles?day=2026-09-28&kind=news&limit=100")
+    assert filtered_api.json()["total"] == 35
+
+
+def test_subscription_domains_are_hidden_without_deleting_rows(client):
+    with Session(client.app.state.test_engine) as session:
+        articles = [
+            Article(
+                url="https://www.forbes.com/paywalled",
+                canonical_url="https://www.forbes.com/paywalled",
+                title="Subscription article",
+                source_domain="www.forbes.com",
+            ),
+            Article(
+                url="https://www.theregister.com/open",
+                canonical_url="https://www.theregister.com/open",
+                title="Open access article",
+                source_domain="www.theregister.com",
+            ),
+        ]
+        session.add_all(articles)
+        session.commit()
+        paywalled_id = articles[0].id
+        assert session.get(Article, paywalled_id) is not None
+
+    listing = client.get("/api/articles")
+    titles = [article["title"] for article in listing.json()["items"]]
+    assert "Subscription article" not in titles
+    assert "Open access article" in titles
+    assert client.get(f"/api/articles/{paywalled_id}").status_code == 404
 
 
 def test_topic_can_be_added_with_search_terms(client):

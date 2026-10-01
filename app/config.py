@@ -1,8 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 import yaml
-from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     sources_file: str = "sources.yaml"
     max_queries_per_topic: int = Field(default=4, ge=1, le=10)
     max_research_results_per_topic: int = Field(default=5, ge=1, le=20)
+    excluded_domains: str = (
+        "nytimes.com,wsj.com,ft.com,bloomberg.com,forbes.com,medium.com,economist.com,"
+        "technologyreview.com,sciencedirect.com,springer.com,wiley.com,ieee.org,acm.org"
+    )
     ai_articles_per_run: int = Field(default=200, ge=1, le=500)
     max_http_response_bytes: int = Field(default=8_000_000, ge=100_000, le=25_000_000)
     allowed_hosts: str = "localhost,127.0.0.1,host.docker.internal"
@@ -43,6 +47,10 @@ class Settings(BaseSettings):
     @property
     def allowed_host_list(self) -> list[str]:
         return [host.strip() for host in self.allowed_hosts.split(",") if host.strip()]
+
+    @property
+    def excluded_domain_list(self) -> list[str]:
+        return [domain.strip().lower().lstrip(".") for domain in self.excluded_domains.split(",") if domain.strip()]
 
     @property
     def config_path(self) -> Path:

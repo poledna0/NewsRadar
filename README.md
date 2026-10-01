@@ -89,6 +89,12 @@ topics:
 
 Each topic triggers limited news searches and one additional research search. Limits are configurable in `.env`. Add feeds in `sources.yaml`; use `article_type: research` only for primary research/paper sources. The classifier distinguishes original studies from reporting about studies.
 
+Default feeds favor openly readable sources: security publications, project/newsroom feeds, public advisories and arXiv. Known subscription domains are listed in `EXCLUDED_DOMAINS`; new results from those domains are skipped and historical articles are hidden from lists without deleting database rows. This is a best-effort domain filter, not a guarantee that every other page has full text. NewsRadar respects robots.txt and never bypasses paywalls.
+
+## Browse the archive
+
+The home page opens on the latest day. Use the horizontal day archive to select any date or **All days**; each view is paginated in groups of 30, with numbered pages and previous/next controls. Filters remain applied while browsing. `GET /api/articles` also accepts `day=YYYY-MM-DD`, `limit` and `offset`.
+
 ## Local AI
 
 Ollama runs separate tasks:
@@ -103,7 +109,7 @@ If Ollama is unavailable, collection continues and articles remain `pending_ai`.
 ## API
 
 - `GET /health`: service and database health.
-- `GET /api/articles`: filter by `topic`, `kind=news|research`, `hours`, `source`, `search` and `sort`.
+- `GET /api/articles`: filter by `topic`, `kind=news|research`, `day=YYYY-MM-DD`, `hours`, `source`, `search` and `sort`; use `limit`/`offset` for pagination.
 - `GET /api/articles/{id}`: article and related sources.
 - `GET /api/topics` and `POST /api/topics`: list and add topics.
 - `DELETE /api/topics/{id}`: disable a topic without deleting history.

@@ -89,6 +89,12 @@ topics:
 
 Cada tema gera consultas limitadas de notícias e uma busca científica adicional. Os limites ficam em `.env`. Para incluir feeds, edite `sources.yaml`; marque `article_type: research` somente para fontes primárias de papers/preprints. A classificação separa estudos originais de reportagens que apenas falam de estudos.
 
+Os feeds padrão priorizam fontes com conteúdo aberto, como publicações de segurança, feeds de projetos/redações, avisos públicos e arXiv. Domínios conhecidos por exigir assinatura ficam em `EXCLUDED_DOMAINS`; novos resultados desses domínios são ignorados e artigos históricos são ocultados das listas sem apagar linhas do banco. A lista é uma filtragem por domínio, não uma garantia de texto integral para toda página restante. O NewsRadar respeita robots.txt e nunca contorna paywalls.
+
+## Navegue pelo arquivo
+
+A página inicial abre no dia mais recente. Use a faixa de dias para escolher qualquer data ou **Todos os dias**; cada vista é paginada em blocos de 30 com números e controles anterior/próxima. Os filtros continuam ativos durante a navegação. `GET /api/articles` também aceita `day=YYYY-MM-DD`, `limit` e `offset`.
+
 ## O que a IA faz
 
 O Ollama executa tarefas separadas:
@@ -103,7 +109,7 @@ Se o Ollama estiver indisponível, a coleta continua e os artigos ficam como `pe
 ## API
 
 - `GET /health`: saúde do serviço e banco.
-- `GET /api/articles`: filtros por `topic`, `kind=news|research`, `hours`, `source`, `search` e `sort`.
+- `GET /api/articles`: filtros por `topic`, `kind=news|research`, `day=YYYY-MM-DD`, `hours`, `source`, `search` e `sort`; use `limit`/`offset` para paginação.
 - `GET /api/articles/{id}`: artigo e fontes relacionadas.
 - `GET /api/topics` e `POST /api/topics`: listar e adicionar temas.
 - `DELETE /api/topics/{id}`: desativar tema; histórico preservado.

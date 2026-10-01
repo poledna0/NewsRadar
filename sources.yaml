@@ -11,6 +11,39 @@ feeds:
   - name: BBC News
     url: https://feeds.bbci.co.uk/news/technology/rss.xml
     enabled: true
+  - name: The Register
+    url: https://www.theregister.com/headlines.atom
+    enabled: true
+  - name: Krebs on Security
+    url: https://krebsonsecurity.com/feed/
+    enabled: true
+  - name: Schneier on Security
+    url: https://www.schneier.com/feed/atom/
+    enabled: true
+  - name: Google Security Blog
+    url: https://security.googleblog.com/feeds/posts/default?alt=rss
+    enabled: true
+  - name: Cloudflare Blog
+    url: https://blog.cloudflare.com/rss/
+    enabled: true
+  - name: Mozilla Hacks
+    url: https://hacks.mozilla.org/feed/
+    enabled: true
+  - name: Fedora Magazine
+    url: https://fedoramagazine.org/feed/
+    enabled: true
+  - name: Ubuntu Blog
+    url: https://ubuntu.com/blog/feed
+    enabled: true
+  - name: NPR Technology
+    url: https://feeds.npr.org/1019/rss.xml
+    enabled: true
+  - name: Deutsche Welle Science and Technology
+    url: https://rss.dw.com/rdf/rss-en-scitech
+    enabled: true
+  - name: CISA Cybersecurity Advisories
+    url: https://www.cisa.gov/cybersecurity-advisories/all.xml
+    enabled: true
   - name: arXiv Artificial Intelligence
     url: https://export.arxiv.org/rss/cs.AI
     article_type: research

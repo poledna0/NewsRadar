@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     max_research_results_per_topic: int = Field(default=5, ge=1, le=20)
     excluded_domains: str = (
         "nytimes.com,wsj.com,ft.com,bloomberg.com,forbes.com,medium.com,economist.com,wired.com,reuters.com,"
-        "technologyreview.com,darkreading.com,csoonline.com,sciencedirect.com,springer.com,wiley.com,ieee.org,acm.org"
+        "technologyreview.com,darkreading.com,csoonline.com,arstechnica.com,sciencedirect.com,springer.com,wiley.com,ieee.org,acm.org"
     )
     ai_articles_per_run: int = Field(default=200, ge=1, le=500)
     max_http_response_bytes: int = Field(default=8_000_000, ge=100_000, le=25_000_000)

@@ -46,7 +46,8 @@
       {% for topic in topics %}
         <span class="topic-chip">
           <a class="topic-link {% if selected_topic == topic.name %}active{% endif %}" href="/?topic={{ topic.name|urlencode }}&view={{ view }}{% if selected_kind %}&kind={{ selected_kind }}{% endif %}">{{ topic.name }}</a>
-          <button class="topic-disable" type="button" data-disable-topic="{{ topic.id }}" aria-label="Desativar tema {{ topic.name }}">×</button>
+          <button class="topic-edit" type="button" data-edit-topic="{{ topic.id }}" data-topic-name="{{ topic.name }}" data-topic-queries="{{ topic.queries|tojson|forceescape }}" aria-label="Editar tema {{ topic.name }}" title="Editar tema">✎</button>
+          <button class="topic-disable" type="button" data-disable-topic="{{ topic.id }}" aria-label="Desativar tema {{ topic.name }}" title="Desativar tema">×</button>
         </span>
       {% endfor %}
       <button class="topic-add" id="topic-open" type="button">+ Tema</button>
@@ -126,7 +127,8 @@
           <p class="highlight-summary">{{ article.summary or article.description or 'Resumo aguardando processamento.' }}</p>
           <div class="article-footer">
             <span>{{ article.source_name or article.source_domain }}</span>
-            <time>{% if article.published_at %}{{ article.published_at.strftime('%d/%m · %H:%M') }}{% else %}{{ article.discovered_at.strftime('%d/%m · %H:%M') }}{% endif %}</time>
+            {% set article_date = article.published_at or article.discovered_at %}
+            <time class="article-date" data-utc="{{ article_date.isoformat() }}" datetime="{{ article_date.isoformat() }}"><span class="date-day">{{ article_date.strftime('%d/%m') }}</span><span class="date-time">{{ article_date.strftime('%H:%M') }}</span></time>
           </div>
         </article>
         {% endfor %}
@@ -169,7 +171,8 @@
             {% endif %}
             <div class="article-footer">
               <span>{{ article.source_name or article.source_domain }}</span>
-              <time>{% if article.published_at %}{{ article.published_at.strftime('%d/%m/%Y · %H:%M') }}{% else %}Descoberta {{ article.discovered_at.strftime('%d/%m · %H:%M') }}{% endif %}</time>
+              {% set article_date = article.published_at or article.discovered_at %}
+              <time class="article-date" data-utc="{{ article_date.isoformat() }}" datetime="{{ article_date.isoformat() }}" title="{% if not article.published_at %}Data da descoberta · {% endif %}{{ article_date.strftime('%d/%m/%Y %H:%M UTC') }}"><span class="date-day">{{ article_date.strftime('%d/%m') }}</span><span class="date-time">{{ article_date.strftime('%H:%M') }}</span>{% if not article.published_at %}<span class="date-label">descoberta</span>{% endif %}</time>
               {% if article.summary %}<button class="translate-article" type="button" data-translate-article="{{ article.id }}">Traduzir resumo</button>{% endif %}
               <a class="original-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">Ler notícia original <span aria-hidden="true">↗</span></a>
             </div>
@@ -201,6 +204,7 @@
   <dialog class="action-dialog" id="topic-dialog" aria-labelledby="topic-dialog-title">
     <form id="topic-form">
       <div class="dialog-heading"><div><p class="eyebrow">PERSONALIZAR RADAR</p><h2 id="topic-dialog-title">Novo tema</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
+      <input type="hidden" name="topic_id">
       <label>Nome do tema<input name="name" required minlength="2" maxlength="60" placeholder="Ex.: computação quântica"></label>
       <label>Termos de busca, um por linha<textarea name="queries" maxlength="1200" rows="4" placeholder="quantum computing&#10;computação quântica&#10;quantum research"></textarea></label>
       <p class="dialog-note">As consultas também buscam notícias e estudos científicos relacionados.</p>

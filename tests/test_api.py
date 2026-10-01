@@ -10,7 +10,7 @@ from app.database import Base, get_db
 from app import main
 from app.main import app
 from app.config import get_settings
-from app.models import Article
+from app.models import Article, Topic
 
 
 @pytest.fixture
@@ -111,6 +111,31 @@ def test_disabled_topic_can_be_reenabled_from_the_form(client):
     assert recreated.status_code == 201
     assert recreated.json()["enabled"] is True
     assert recreated.json()["queries"] == ["distributed systems"]
+
+
+def test_topic_can_be_edited_and_stays_user_managed(client):
+    created = client.post("/api/topics", json={"name": "Segurança", "queries": ["security"]})
+    topic_id = created.json()["id"]
+
+    updated = client.put(
+        f"/api/topics/{topic_id}",
+        json={"name": "Segurança digital", "queries": ["cybersecurity", "segurança digital"]},
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Segurança digital"
+    assert updated.json()["queries"] == ["cybersecurity", "segurança digital"]
+    with Session(client.app.state.test_engine) as session:
+        assert session.get(Topic, topic_id).origin == "ui"
+
+
+def test_topic_edit_rejects_duplicate_name(client):
+    first = client.post("/api/topics", json={"name": "Primeiro tema"}).json()
+    second = client.post("/api/topics", json={"name": "Segundo tema"}).json()
+
+    response = client.put(f"/api/topics/{second['id']}", json={"name": first["name"]})
+
+    assert response.status_code == 409
 
 
 def test_cross_site_write_is_rejected(client):

@@ -19,7 +19,16 @@ from sqlalchemy.orm import Session, selectinload
 from app.config import ROOT_DIR, get_settings
 from app.database import SessionLocal, engine, ensure_schema, get_db
 from app.models import Article, ProcessingRun, Source, Topic
-from app.schemas import ArticleListOut, ArticleOut, SourceOut, TopicCreate, TopicOut, TranslationOut, TranslationRequest
+from app.schemas import (
+    ArticleListOut,
+    ArticleOut,
+    SourceOut,
+    TopicCreate,
+    TopicOut,
+    TopicUpdate,
+    TranslationOut,
+    TranslationRequest,
+)
 from app.services.pipeline import collect_news, process_pending_articles, sync_topics
 from app.services.ollama import translate_to_language
 from app.services.cloudflare_access import verify_access_token
@@ -168,7 +177,10 @@ def article_query(
     if topic:
         query = query.join(Article.topics).where(Topic.name == topic)
     if hours:
-        query = query.where(Article.discovered_at >= datetime.now(timezone.utc) - timedelta(hours=hours))
+        query = query.where(
+            func.coalesce(Article.published_at, Article.discovered_at)
+            >= datetime.now(timezone.utc) - timedelta(hours=hours)
+        )
     if source:
         query = query.where(Article.source_domain == source)
     if search:
@@ -183,9 +195,6 @@ def article_query(
         query = query.where(func.date(func.coalesce(Article.published_at, Article.discovered_at)) == published_day)
     if events_only:
         query = query.where(Article.related_sources.is_not(None)).where(Article.related_sources != [])
-    for domain in get_settings().excluded_domain_list:
-        hostname = func.lower(func.coalesce(Article.source_domain, ""))
-        query = query.where(hostname != domain, ~hostname.endswith(f".{domain}"))
     return query
 
 
@@ -260,6 +269,27 @@ def create_topic(payload: TopicCreate, request: Request, session: Session = Depe
         return existing
     topic = Topic(name=name, queries=payload.normalized_queries(), origin="ui", enabled=True)
     session.add(topic)
+    session.commit()
+    session.refresh(topic)
+    return topic
+
+
+@app.put("/api/topics/{topic_id}", response_model=TopicOut)
+def update_topic(topic_id: int, payload: TopicUpdate, request: Request, session: Session = Depends(get_db)):
+    protect_write(request, "topics", limit=10, window_seconds=3_600)
+    topic = session.get(Topic, topic_id)
+    if topic is None or not topic.enabled:
+        raise HTTPException(status_code=404, detail="topic not found")
+    name = payload.name.strip()
+    duplicate = session.scalar(
+        select(Topic).where(func.lower(Topic.name) == name.lower(), Topic.id != topic_id)
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="topic name already exists")
+    topic.name = name
+    topic.queries = payload.normalized_queries()
+    # UI edits must survive YAML synchronization on the next collection run.
+    topic.origin = "ui"
     session.commit()
     session.refresh(topic)
     return topic
@@ -469,7 +499,13 @@ def home(
             "previous_page_url": "/?" + urlencode({**pagination_base, "page": page - 1}) if page > 1 else None,
             "next_page_url": "/?" + urlencode({**pagination_base, "page": page + 1}) if page < total_pages else None,
             "topics": session.scalars(select(Topic).where(Topic.enabled.is_(True)).order_by(Topic.name)).all(),
-            "sources": session.scalars(select(Source.domain).where(Source.domain.is_not(None)).distinct().order_by(Source.domain)).all(),
+            "sources": [
+                domain
+                for domain in session.scalars(
+                    select(Source.domain).where(Source.domain.is_not(None)).distinct().order_by(Source.domain)
+                ).all()
+                if not is_excluded_domain(domain, get_settings().excluded_domain_list)
+            ],
             "selected_topic": topic,
             "selected_kind": kind,
             "translation_default_target": get_settings().translation_default_target,

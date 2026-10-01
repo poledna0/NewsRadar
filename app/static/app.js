@@ -9,7 +9,15 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("visible"), 4000);
 }
 
-document.querySelector("#topic-open").addEventListener("click", () => topicDialog.showModal());
+const topicForm = document.querySelector("#topic-form");
+const topicSubmit = topicForm.querySelector("[type=submit]");
+document.querySelector("#topic-open").addEventListener("click", () => {
+  topicForm.reset();
+  topicForm.elements.topic_id.value = "";
+  document.querySelector("#topic-dialog-title").textContent = "Novo tema";
+  topicSubmit.textContent = "Adicionar tema";
+  topicDialog.showModal();
+});
 document.querySelector("#translate-open").addEventListener("click", () => translateDialog.showModal());
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {
   button.addEventListener("click", () => button.closest("dialog").close());
@@ -19,6 +27,7 @@ collectButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     button.disabled = true;
     const label = button.querySelector("span");
+    const originalLabel = label?.textContent;
     if (label) label.textContent = "Coletando…";
     try {
       const response = await fetch("/api/collect", { method: "POST" });
@@ -29,8 +38,24 @@ collectButtons.forEach((button) => {
     } catch (error) {
       showToast(error.message);
       button.disabled = false;
-      if (label) label.textContent = "Coletar agora";
+      if (label) label.textContent = originalLabel;
     }
+  });
+});
+
+document.querySelectorAll("[data-edit-topic]").forEach((button) => {
+  button.addEventListener("click", () => {
+    topicForm.reset();
+    topicForm.elements.topic_id.value = button.dataset.editTopic;
+    topicForm.elements.name.value = button.dataset.topicName;
+    try {
+      topicForm.elements.queries.value = JSON.parse(button.dataset.topicQueries).join("\n");
+    } catch {
+      topicForm.elements.queries.value = "";
+    }
+    document.querySelector("#topic-dialog-title").textContent = "Editar tema";
+    topicSubmit.textContent = "Salvar alterações";
+    topicDialog.showModal();
   });
 });
 
@@ -41,12 +66,13 @@ document.querySelector("#topic-form").addEventListener("submit", async (event) =
   const fields = new FormData(form);
   button.disabled = true;
   try {
-    const response = await fetch("/api/topics", {
-      method: "POST",
+    const topicId = fields.get("topic_id");
+    const response = await fetch(topicId ? `/api/topics/${encodeURIComponent(topicId)}` : "/api/topics", {
+      method: topicId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: fields.get("name"),
-        queries: fields.get("queries").split("\n").map((query) => query.trim()).filter(Boolean),
+        queries: fields.get("queries").split(/\r?\n/).map((query) => query.trim()).filter(Boolean),
       }),
     });
     const result = await response.json();
@@ -70,6 +96,28 @@ document.querySelectorAll("[data-disable-topic]").forEach((button) => {
       button.disabled = false;
     }
   });
+});
+
+document.querySelectorAll("time.article-date[data-utc]").forEach((element) => {
+  const value = element.dataset.utc;
+  const date = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`);
+  if (Number.isNaN(date.getTime())) return;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const publishedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round((today - publishedDay) / 86_400_000);
+  const timeText = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date);
+  const dayText = dayDiff === 0
+    ? "Hoje"
+    : dayDiff === 1
+      ? "Ontem"
+      : new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(date).replace(" de ", " ");
+  element.querySelector(".date-day").textContent = dayText;
+  element.querySelector(".date-time").textContent = timeText;
+  element.dateTime = date.toISOString();
+  if (!element.title) {
+    element.title = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(date);
+  }
 });
 
 document.querySelector("#translate-form").addEventListener("submit", async (event) => {

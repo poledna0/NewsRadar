@@ -81,8 +81,9 @@ h1 { margin-bottom: 4px; font: 500 35px/1.18 var(--font-display); letter-spacing
 .topic-link, .view-link { flex: 0 0 auto; padding: 7px 11px; border: 1px solid transparent; border-radius: 3px; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .topic-chip { display: inline-flex; align-items: center; gap: 1px; flex: 0 0 auto; border: 1px solid transparent; border-radius: 3px; }
 .topic-chip .topic-link { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
-.topic-disable, .dialog-close { width: 28px; height: 28px; border: 0; background: transparent; color: var(--subtle); font-size: 17px; }
+.topic-disable, .topic-edit, .dialog-close { width: 25px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--subtle); font-size: 15px; line-height: 1; }
 .topic-disable:hover, .dialog-close:hover { color: var(--coral); }
+.topic-edit:hover { color: var(--mint); }
 .topic-add, .translate-open, .translate-article { min-height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 3px; background: transparent; color: var(--mint); font-size: 11px; }
 .topic-add { flex: 0 0 auto; }
 .topic-add:hover, .translate-open:hover, .translate-article:hover { border-color: var(--mint); background: var(--surface); }
@@ -132,7 +133,11 @@ h2 { margin: 0; font: 500 24px/1.25 var(--font-display); }
 .highlight-item h3 a:hover, .news-body h3 a:hover { color: var(--mint); }
 .highlight-summary { display: -webkit-box; margin: 0 0 14px; color: var(--muted); font-size: 11px; line-height: 1.5; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .article-footer { display: flex; align-items: center; gap: 10px; margin-top: auto; color: var(--subtle); font-size: 10px; }
-.article-footer time { white-space: nowrap; }
+.article-footer .article-date { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 4px 8px; border: 1px solid #35483f; border-radius: 999px; background: #1b2923; color: var(--text); font-size: 10px; line-height: 1.2; white-space: nowrap; }
+.article-date .date-day { color: var(--mint); font-weight: 700; }
+.article-date .date-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.article-date .date-label { padding-left: 6px; border-left: 1px solid var(--border); color: var(--subtle); font-size: 9px; }
+.highlight-item .article-date { margin-left: auto; }
 
 .news-section { padding-top: 24px; }
 .news-heading { margin-bottom: 0; }

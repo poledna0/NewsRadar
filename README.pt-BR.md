@@ -70,7 +70,7 @@ docker compose logs -f newsradar
 
 ## Configure seus temas
 
-Na interface, clique em **+ Tema**, informe um nome e consultas opcionais, uma por linha. O tema é persistido no SQLite. Também é possível editar `config.yaml` antes de iniciar. Exemplo:
+Na interface, clique em **+ Tema** para adicionar um tema. Para mudar um tema que já aparece na barra superior, use o ícone de lápis ao lado dele e edite o nome ou as consultas, uma por linha. As alterações ficam salvas no SQLite. Também é possível editar `config.yaml` antes de iniciar. Exemplo:
 
 ```yaml
 languages: [pt, en]
@@ -118,7 +118,7 @@ Se o Ollama estiver indisponível, a coleta continua e os artigos ficam como `pe
 - `GET /health`: saúde do serviço e banco.
 - `GET /api/articles`: filtros por `topic`, `kind=news|research`, `day=YYYY-MM-DD`, `hours`, `source`, `search` e `sort`; use `limit`/`offset` para paginação.
 - `GET /api/articles/{id}`: artigo e fontes relacionadas.
-- `GET /api/topics` e `POST /api/topics`: listar e adicionar temas.
+- `GET /api/topics`, `POST /api/topics` e `PUT /api/topics/{id}`: listar, adicionar e editar temas.
 - `DELETE /api/topics/{id}`: desativar tema; histórico preservado.
 - `POST /api/translate`: traduzir até 12 mil caracteres; JSON aceita `target=pt-BR|en`.
 - `POST /api/articles/{id}/translate?target=en`: traduzir e guardar por idioma o resumo do artigo.

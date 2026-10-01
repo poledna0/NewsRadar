@@ -22,6 +22,10 @@ class TopicCreate(BaseModel):
         return list(dict.fromkeys(queries)) or [self.name.strip()]
 
 
+class TopicUpdate(TopicCreate):
+    """Fields editable for a saved topic in the navigation bar."""
+
+
 class TranslationRequest(BaseModel):
     text: str = Field(min_length=1, max_length=12_000)
     target: Literal["pt-BR", "en"] | None = None

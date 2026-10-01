@@ -5,9 +5,6 @@ feeds:
   - name: BleepingComputer
     url: https://www.bleepingcomputer.com/feed/
     enabled: true
-  - name: Ars Technica
-    url: https://feeds.arstechnica.com/arstechnica/index
-    enabled: true
   - name: BBC News
     url: https://feeds.bbci.co.uk/news/technology/rss.xml
     enabled: true

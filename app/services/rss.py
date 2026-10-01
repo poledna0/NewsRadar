@@ -23,6 +23,11 @@ async def read_feed(feed: dict) -> list[dict]:
                 feed.get("name", feed.get("url")),
                 len(entries),
             )
+        configured_type = str(feed.get("article_type", "news")).strip().lower()
+        article_type = "research" if configured_type == "research" else "news"
+        category_hint = feed.get("category_hint")
+        if configured_type not in {"news", "research"}:
+            category_hint = category_hint or configured_type
         for entry in entries:
             link = entry.get("link")
             title = entry.get("title")
@@ -42,7 +47,8 @@ async def read_feed(feed: dict) -> list[dict]:
                     "published_at": published,
                     "image_url": None,
                     "topic_names": [],
-                    "article_type": feed.get("article_type", "news"),
+                    "article_type": article_type,
+                    "category_hint": category_hint,
                 }
             )
         return items

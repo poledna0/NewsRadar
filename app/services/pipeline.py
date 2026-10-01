@@ -94,6 +94,11 @@ def _attach_topics(article: Article, names: list[str], topic_by_name: dict[str, 
 
 async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_name: dict[str, Topic], counters: dict):
     url = item.get("url", "")
+    configured_type = str(item.get("article_type", "news")).strip().lower()
+    article_type = "research" if configured_type == "research" else "news"
+    category_hint = item.get("category_hint")
+    if configured_type not in {"news", "research"}:
+        category_hint = category_hint or configured_type
     try:
         canonical_url = normalize_url(url)
     except ValueError:
@@ -121,7 +126,7 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
         select(Article).where(Article.discovered_at >= utc_now() - timedelta(days=3)).order_by(Article.discovered_at.desc())
     ).all()
     duplicate = find_title_duplicate(item.get("title", ""), candidates)
-    if duplicate and duplicate.article_type != item.get("article_type", "news"):
+    if duplicate and duplicate.article_type != article_type:
         duplicate = None
     if duplicate:
         sources = list(duplicate.related_sources or [])
@@ -160,8 +165,9 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
         discovered_at=utc_now(),
         content=extracted.get("content"),
         description=extracted.get("description") or item.get("description"),
+        category=category_hint,
         image_url=extracted.get("image_url") or item.get("image_url"),
-        article_type=item.get("article_type", "news"),
+        article_type=article_type,
         processing_status="pending_ai",
         event_key=event_key(item.get("title", "")),
     )
@@ -185,6 +191,7 @@ async def _process_pending(session: Session, topic_by_name: dict[str, Topic], li
             "description": article.description or "",
             "content": article.content or "",
             "article_type": article.article_type,
+            "category_hint": article.category or "",
             "related_sources": article.related_sources or [],
         }
         try:

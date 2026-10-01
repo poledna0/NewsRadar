@@ -41,6 +41,7 @@ SEARXNG_URL=http://host.docker.internal:6767
 OLLAMA_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen3.5:9b
 TRANSLATION_DEFAULT_TARGET=pt-BR
+EXCLUDED_DOMAINS=nytimes.com,wsj.com,ft.com,bloomberg.com,forbes.com,medium.com,economist.com,wired.com,reuters.com,technologyreview.com,darkreading.com,csoonline.com
 ALLOWED_HOSTS=localhost,127.0.0.1,host.docker.internal,IP_DO_SERVIDOR
 ```
 
@@ -120,12 +121,8 @@ Se o Ollama estiver indisponível, a coleta continua e os artigos ficam como `pe
 
 ## Documentação
 
-- [Guia do código e visão de segurança](docs/GUIA_DO_CODIGO.txt)
 - [Configurar SearXNG](docs/SEARXNG.md)
-- [Preparar a página pública do GitHub](docs/PUBLICAR_NO_GITHUB.md)
-- [Contribuir](CONTRIBUTING.md)
-- [Política de segurança](SECURITY.md)
-- [Código de conduta](CODE_OF_CONDUCT.md)
+- [English](README.md)
 
 ## Segurança
 

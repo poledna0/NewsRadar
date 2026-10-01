@@ -55,6 +55,7 @@ Retorne JSON com relevance_score (inteiro 0-100), category (texto curto), articl
 topics (itens somente da lista) e important (booleano).
 Use 'research' somente para artigo científico original, preprint, paper ou relatório de pesquisa. Uma notícia que relata
 uma pesquisa continua sendo 'news'. Tipo sugerido pela fonte: {article.get('article_type', 'news')}.
+Categoria/foco sugerido pela fonte (use como pista, não como tipo de publicação): {article.get('category_hint', '')}
 Não invente informações. Categorias e tópicos devem refletir o conteúdo, não apenas palavras isoladas.
 
 Tópicos disponíveis: {json.dumps(topic_names, ensure_ascii=False)}

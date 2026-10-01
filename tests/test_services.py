@@ -192,6 +192,18 @@ async def test_rss_feed_entry_limit_is_enforced(monkeypatch):
     assert len(result) == 2
 
 
+@pytest.mark.asyncio
+async def test_custom_feed_category_does_not_break_news_research_filter(monkeypatch):
+    entry = {"title": "A security advisory", "link": "https://example.org/security"}
+    monkeypatch.setattr(rss, "get_public_response", lambda *_args: _fake_response())
+    monkeypatch.setattr(rss.feedparser, "parse", lambda _content: SimpleNamespace(bozo=False, entries=[entry]))
+    result = await rss.read_feed(
+        {"name": "CISA", "url": "https://example.org/rss", "article_type": "security"}
+    )
+    assert result[0]["article_type"] == "news"
+    assert result[0]["category_hint"] == "security"
+
+
 async def _fake_response():
     return SimpleNamespace(content=b"<rss />")
 

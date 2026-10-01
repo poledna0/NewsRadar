@@ -25,7 +25,8 @@ async def _check_feed(feed: dict, semaphore: asyncio.Semaphore) -> tuple[str, st
             return name, "empty or invalid feed", 0
         except Exception as error:
             logger.debug("Feed audit failed for %s: %s", name, error)
-            return name, f"unavailable ({type(error).__name__})", 0
+            detail = str(error)[:100] if isinstance(error, RuntimeError) else type(error).__name__
+            return name, f"unavailable ({detail})", 0
 
 
 async def audit_feeds(concurrency: int = 8) -> list[tuple[str, str, int]]:

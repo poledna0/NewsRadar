@@ -65,6 +65,34 @@ def test_daily_archive_paginates_all_articles_for_a_day(client):
     assert filtered_api.json()["total"] == 35
 
 
+def test_article_dates_identify_publication_and_discovery_dates(client):
+    with Session(client.app.state.test_engine) as session:
+        session.add_all(
+            [
+                Article(
+                    url="https://example.org/published",
+                    canonical_url="https://example.org/published",
+                    title="Published article",
+                    published_at=datetime.now(timezone.utc),
+                ),
+                Article(
+                    url="https://example.org/discovered",
+                    canonical_url="https://example.org/discovered",
+                    title="Discovered article",
+                ),
+            ]
+        )
+        session.commit()
+
+    response = client.get("/?day=all&kind=news")
+
+    assert response.status_code == 200
+    assert 'data-date-kind="published"' in response.text
+    assert 'data-date-kind="discovered"' in response.text
+    assert '<span class="date-label">publicado</span>' in response.text
+    assert '<span class="date-label">descoberto</span>' in response.text
+
+
 def test_subscription_domains_are_hidden_without_deleting_rows(client):
     with Session(client.app.state.test_engine) as session:
         articles = [

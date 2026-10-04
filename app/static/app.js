@@ -103,21 +103,26 @@ document.querySelectorAll("time.article-date[data-utc]").forEach((element) => {
   const date = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`);
   if (Number.isNaN(date.getTime())) return;
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const publishedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayDiff = Math.round((today - publishedDay) / 86_400_000);
+  const dayNumber = (value) => Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()) / 86_400_000;
+  const dayDiff = dayNumber(now) - dayNumber(date);
   const timeText = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date);
+  const dateOptions = {
+    day: "2-digit",
+    month: "short",
+    ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  };
   const dayText = dayDiff === 0
     ? "Hoje"
     : dayDiff === 1
       ? "Ontem"
-      : new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(date).replace(" de ", " ");
+      : new Intl.DateTimeFormat("pt-BR", dateOptions).format(date).replace(" de ", " ").replace(/\.$/, "");
   element.querySelector(".date-day").textContent = dayText;
   element.querySelector(".date-time").textContent = timeText;
+  const dateKind = element.dataset.dateKind === "discovered" ? "Descoberto" : "Publicado";
+  element.querySelector(".date-label").textContent = dateKind.toLowerCase();
   element.dateTime = date.toISOString();
-  if (!element.title) {
-    element.title = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(date);
-  }
+  const fullDate = new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeStyle: "short" }).format(date);
+  element.title = `${dateKind} em ${fullDate}`;
 });
 
 document.querySelector("#translate-form").addEventListener("submit", async (event) => {

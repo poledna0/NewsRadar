@@ -128,7 +128,17 @@
           <div class="article-footer">
             <span>{{ article.source_name or article.source_domain }}</span>
             {% set article_date = article.published_at or article.discovered_at %}
-            <time class="article-date" data-utc="{{ article_date.isoformat() }}" datetime="{{ article_date.isoformat() }}"><span class="date-day">{{ article_date.strftime('%d/%m') }}</span><span class="date-time">{{ article_date.strftime('%H:%M') }}</span></time>
+            <time
+              class="article-date"
+              data-utc="{{ article_date.isoformat() }}"
+              data-date-kind="{% if article.published_at %}published{% else %}discovered{% endif %}"
+              datetime="{{ article_date.isoformat() }}"
+              title="{% if article.published_at %}Publicado{% else %}Descoberto{% endif %} em {{ article_date.strftime('%d/%m/%Y %H:%M UTC') }}"
+            >
+              <span class="date-day">{{ article_date.strftime('%d/%m') }}</span>
+              <span class="date-time">{{ article_date.strftime('%H:%M') }}</span>
+              <span class="date-label">{% if article.published_at %}publicado{% else %}descoberto{% endif %}</span>
+            </time>
           </div>
         </article>
         {% endfor %}
@@ -172,7 +182,17 @@
             <div class="article-footer">
               <span>{{ article.source_name or article.source_domain }}</span>
               {% set article_date = article.published_at or article.discovered_at %}
-              <time class="article-date" data-utc="{{ article_date.isoformat() }}" datetime="{{ article_date.isoformat() }}" title="{% if not article.published_at %}Data da descoberta · {% endif %}{{ article_date.strftime('%d/%m/%Y %H:%M UTC') }}"><span class="date-day">{{ article_date.strftime('%d/%m') }}</span><span class="date-time">{{ article_date.strftime('%H:%M') }}</span>{% if not article.published_at %}<span class="date-label">descoberta</span>{% endif %}</time>
+              <time
+                class="article-date"
+                data-utc="{{ article_date.isoformat() }}"
+                data-date-kind="{% if article.published_at %}published{% else %}discovered{% endif %}"
+                datetime="{{ article_date.isoformat() }}"
+                title="{% if article.published_at %}Publicado{% else %}Descoberto{% endif %} em {{ article_date.strftime('%d/%m/%Y %H:%M UTC') }}"
+              >
+                <span class="date-day">{{ article_date.strftime('%d/%m') }}</span>
+                <span class="date-time">{{ article_date.strftime('%H:%M') }}</span>
+                <span class="date-label">{% if article.published_at %}publicado{% else %}descoberto{% endif %}</span>
+              </time>
               {% if article.summary %}<button class="translate-article" type="button" data-translate-article="{{ article.id }}">Traduzir resumo</button>{% endif %}
               <a class="original-link" href="{{ article.url }}" target="_blank" rel="noopener noreferrer">Ler notícia original <span aria-hidden="true">↗</span></a>
             </div>

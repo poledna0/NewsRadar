@@ -1,150 +1,96 @@
 # NewsRadar
 
-**Your self-hosted radar for news and research.** Discover, deduplicate and summarize sources around your interests with SearXNG, RSS and local Ollama.
+Agregador local de notícias e pesquisa com RSS/Atom, descoberta por SearXNG,
+deduplicação, resumos por Ollama e tradução para português ou inglês.
+Interface responsiva em português, renderizada no servidor, sem framework JavaScript ou build Node.
 
-[English](README.md) · [Português](README.pt-BR.md)
+Python/FastAPI, SQLAlchemy/SQLite, Jinja, JavaScript nativo e CSS. Ollama e SearXNG são serviços externos.
+Resumos e classificações de IA podem conter erros: confira as fontes originais.
 
-[![CI](https://github.com/poledna0/NewsRadar/actions/workflows/tests.yml/badge.svg)](https://github.com/poledna0/NewsRadar/actions/workflows/tests.yml)
-[![Apache 2.0 License](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](docker-compose.yml)
+## Instalação local
 
-NewsRadar is a self-hosted news aggregator: define interests, not hundreds of websites. It discovers news and research, stores articles in SQLite, and uses a locally hosted model for classification, grouping and Portuguese summaries.
-
-> **Status:** actively developed. AI classifications and summaries may be wrong; always check the original source.
-
-## Why NewsRadar?
-
-- **Automatic discovery:** topic searches through SearXNG, complemented by RSS/Atom feeds.
-- **Research separated from news:** papers/preprints and journalism have distinct filters.
-- **Fewer duplicates:** URLs and similar headlines are checked before using AI.
-- **Local AI:** Ollama handles classification and summaries without a paid AI API.
-- **Your data stays yours:** SQLite persists on your host; configuration is plain YAML.
-- **Lightweight UI:** FastAPI, Jinja and simple JavaScript, with no heavy frontend framework.
-
-## Quick start
-
-Requirements: Docker Engine with Compose v2, an accessible SearXNG instance and Ollama.
+Requisitos: Python 3.12 ou superior e acesso ao PyPI para instalar as dependências.
+SearXNG é necessário para buscas; Ollama com o modelo configurado para IA e traduções.
+Sem esses serviços, o acervo continua consultável; RSS não depende de SearXNG.
 
 ```sh
-git clone https://github.com/poledna0/NewsRadar.git
-cd NewsRadar
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
 mkdir -p data
-sed -i "s/^APP_UID=.*/APP_UID=$(id -u)/; s/^APP_GID=.*/APP_GID=$(id -g)/" .env
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --no-server-header
 ```
 
-Set service URLs reachable **from inside the container** in `.env`. Example for SearXNG and Ollama running on the host:
+Execute a partir da raiz do projeto. Acesse http://127.0.0.1:8000 e `/health`.
+O exemplo `.env` usa serviços em localhost. Ajuste URLs para sua instalação.
+Para desenvolver: instale `requirements-dev.txt` e acrescente `--reload` ao comando acima.
+Não combine reload com produção. Use um único worker para não duplicar agendamentos e modelos em memória.
 
-```dotenv
-SEARXNG_URL=http://host.docker.internal:6767
-OLLAMA_URL=http://host.docker.internal:11434
-OLLAMA_MODEL=qwen3.5:9b
-TRANSLATION_DEFAULT_TARGET=pt-BR
-EXCLUDED_DOMAINS=nytimes.com,wsj.com,ft.com,bloomberg.com,forbes.com,medium.com,economist.com,wired.com,reuters.com,technologyreview.com,darkreading.com,csoonline.com
-ALLOWED_HOSTS=localhost,127.0.0.1,host.docker.internal,SERVER_IP
-```
-
-`TRANSLATION_DEFAULT_TARGET` accepts `pt-BR` or `en` and selects the initial UI target. The top-bar selector changes the target for each translation without a restart.
-
-SearXNG must enable its JSON API. See [docs/SEARXNG.md](docs/SEARXNG.md). Pull the configured local model:
+## Produção com Docker
 
 ```sh
-ollama pull qwen3.5:9b
+cp .env.example .env
+mkdir -p data
 ```
 
-Start NewsRadar:
+Configure `.env`: `APP_UID`/`APP_GID` devem corresponder ao proprietário de `data`;
+SearXNG e Ollama precisam de URLs acessíveis de dentro do container, por exemplo
+`http://host.docker.internal:8080` e `http://host.docker.internal:11434`.
+A configuração depende de onde seus serviços estão instalados; o Compose não os cria.
 
 ```sh
 docker compose up -d --build
-```
-
-Open `http://SERVER_IP:8000`. Check the deployment:
-
-```sh
-curl http://localhost:8000/health
 docker compose logs -f newsradar
+curl http://127.0.0.1:8000/health
 ```
 
-The SQLite database lives in `./data/newsradar.db`. The container runs without root and with a read-only root filesystem. Compose does not start SearXNG or Ollama and does not modify existing services.
+O bind padrão é `127.0.0.1`. Para acesso pela LAN, configure `APP_BIND` com a interface apropriada
+junto a firewall, `ALLOWED_HOSTS` e controle de acesso. Não exponha a origem pública sem autenticação.
+Veja [operação e deploy](docs/OPERACAO.md) e [segurança](SECURITY.md).
 
-## Add topics
+## Uso
 
-Click **+ Tema** in the UI and enter a name plus optional search queries, one per line. UI-created topics are persisted in SQLite. You can also edit `config.yaml` before startup:
+- **+ Tema**: nome e até 8 consultas de até 160 caracteres cada. Consultas vazias usam o nome.
+- Temas podem ser editados ou desativados sem apagar o histórico. Alterações na UI prevalecem sobre YAML.
+- **Coletar**: busca notícias/papers por tema, lê feeds de `sources.yaml`, agrupa duplicatas e processa IA.
+- Filtros por tema, tipo, dia, fonte, período e texto; ordenação por data ou relevância.
+- Arquivo diário e paginação de 30 itens. “Múltiplas fontes” mostra coberturas agrupadas.
+- **Traduzir**: texto livre ou resumo de artigo. Selecione pt-BR ou inglês no topo.
+- Traduções de artigos são armazenadas por idioma e invalidadas quando o resumo ou título é atualizado.
 
-```yaml
-languages: [pt, en]
-topics:
-  - name: cybersecurity
-    queries:
-      - cybersecurity
-      - cyber attack
-      - vulnerability CVE
-    enabled: true
-  - name: artificial intelligence
-    queries:
-      - artificial intelligence
-      - machine learning
-    enabled: true
-```
+A coleta automática ocorre a cada 30 minutos, e a fila de IA é retomada a cada 5 minutos.
+Se Ollama ficar indisponível, o lote de IA para no primeiro erro de conexão para evitar timeouts repetidos;
+as publicações continuam pendentes para o próximo ciclo. Resultados malformados não interrompem os demais artigos.
 
-Each topic triggers limited news searches and one additional research search. Limits are configurable in `.env`. Add feeds in `sources.yaml`; use `article_type: research` only for primary research/paper sources. The classifier distinguishes original studies from reporting about studies.
-
-Default feeds favor openly readable sources: security publications, project/newsroom feeds, public advisories and arXiv. Known subscription domains are listed in `EXCLUDED_DOMAINS`; new results from those domains are skipped and historical articles are hidden from lists without deleting database rows. This is a best-effort domain filter, not a guarantee that every other page has full text. NewsRadar respects robots.txt and never bypasses paywalls.
-
-After adding or changing feeds, audit the configured endpoints and confirm which ones return parseable entries:
-
-```sh
-docker compose exec newsradar python -m app.services.feed_audit
-```
-
-## Browse the archive
-
-The home page opens on the latest day. Use the horizontal day archive to select any date or **All days**; each view is paginated in groups of 30, with numbered pages and previous/next controls. Filters remain applied while browsing. `GET /api/articles` also accepts `day=YYYY-MM-DD`, `limit` and `offset`.
-
-## Local AI
-
-Ollama runs separate tasks:
-
-1. Classify relevance, category, topics and type (`news` or `research`).
-2. Summarize in Portuguese with neutral language and source attribution.
-3. Consolidate similar coverage while preserving source links.
-4. Translate free text or article summaries to Brazilian Portuguese or English on demand.
-
-If Ollama is unavailable, collection continues and articles remain `pending_ai`. The default model is `qwen3.5:9b`; set `OLLAMA_MODEL` to use another model. LLM output is not an independent factual source.
-
-## API
-
-- `GET /health`: service and database health.
-- `GET /api/articles`: filter by `topic`, `kind=news|research`, `day=YYYY-MM-DD`, `hours`, `source`, `search` and `sort`; use `limit`/`offset` for pagination.
-- `GET /api/articles/{id}`: article and related sources.
-- `GET /api/topics` and `POST /api/topics`: list and add topics.
-- `DELETE /api/topics/{id}`: disable a topic without deleting history.
-- `POST /api/translate`: translate up to 12,000 characters; JSON accepts `target=pt-BR|en`.
-- `POST /api/articles/{id}/translate?target=en`: translate and cache an article summary separately per language.
-- `POST /api/collect`: trigger a manual collection.
-- `GET /api/stats`: counts and last collection state.
-
-## Documentation
-
-- [SearXNG setup](docs/SEARXNG.md)
-- [Português (Brasil)](README.pt-BR.md)
-
-## Security
-
-The origin has **no built-in authentication by default**. The app can verify Cloudflare Access JWTs when `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUDIENCE` are configured, but NewsRadar does not configure the proxy. Do not forward the origin port from your router; restrict direct access with a firewall/private network and configure Access before exposing the app.
-
-The scraper validates public destinations at resolution time, pins the IP to the socket and revalidates redirects. The UI uses CSP, TrustedHost, body limits, origin validation and write rate limits. See [SECURITY.md](SECURITY.md) and the code guide for residual risks.
-
-## Tests and contributing
+## Testes e medições
 
 ```sh
 pip install -r requirements-dev.txt
 python -m pytest -q
+python -m compileall -q app tests scripts
+python scripts/benchmark.py
 ```
 
-Pull requests and bug reports are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before contributing. CI runs tests on Python 3.12.
+Sem dependências: `python -m unittest discover -s tests -p test_core_unittest.py -v`.
+Opcional, com GJS instalado: `gjs scripts/check_frontend.js`.
 
-## License
+**Estado da validação desta entrega:** seis testes offline e quatro cenários JavaScript passaram;
+compilação Python e checagem de diff passaram. A suíte pytest, execução integrada e revisão visual em navegador
+ficaram bloqueadas por dependências indisponíveis e DNS restrito. Não considerar o deploy validado em produção.
+O benchmark é sintético do acesso SQLite, não do serviço completo. Resultados e limitações no relatório.
 
-Apache License 2.0. See [LICENSE](LICENSE).
+## Documentação
+
+- [Relatório, benchmarks e pendências](docs/RELATORIO.md)
+- [Diagnóstico inicial e plano](docs/DIAGNOSTICO.md)
+- [Arquitetura, decisões e fluxo de coleta/IA](docs/ARQUITETURA.md)
+- [Configuração, instalação, deploy e troubleshooting](docs/OPERACAO.md)
+- [APIs e exemplos](docs/API.md)
+- [Configuração SearXNG](docs/SEARXNG.md)
+- [Contribuição](CONTRIBUTING.md) e [segurança](SECURITY.md)
+
+A sigla **CT** não consta no projeto recebido. A revisão específica de CT depende de sua definição
+ou do fornecimento do código correspondente; nenhum fluxo de negócio foi inventado para substituí-la.
+
+Licença Apache 2.0: [LICENSE](LICENSE).

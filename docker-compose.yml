@@ -16,7 +16,7 @@ services:
     environment:
       TRANSLATION_DEFAULT_TARGET: ${TRANSLATION_DEFAULT_TARGET:-pt-BR}
     ports:
-      - "${APP_PORT:-8000}:8000"
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8000}:8000"
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro

@@ -1,7 +1,6 @@
 """Offline SQLite data-access benchmark. Not an end-to-end app benchmark."""
 import argparse
 import json
-import os
 from pathlib import Path
 import platform
 import resource

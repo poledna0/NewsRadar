@@ -3,16 +3,39 @@ const toast = document.querySelector("#toast");
 const topicDialog = document.querySelector("#topic-dialog");
 const translateDialog = document.querySelector("#translate-dialog");
 
+let toastTimer;
+
+async function readResult(response) {
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("O servidor não retornou uma resposta válida. Tente novamente.");
+  }
+  if (!response.ok) {
+    const detail = result.detail;
+    const message = Array.isArray(detail)
+      ? detail.map((item) => `${item.loc?.slice(1).join(" / ") || "Campo"}: ${item.msg}`).join(". ")
+      : typeof detail === "string" ? detail : "Não foi possível concluir a operação.";
+    throw new Error(message);
+  }
+  return result;
+}
+
+document.querySelectorAll("a.active").forEach((link) => link.setAttribute("aria-current", "page"));
+
 function showToast(message) {
+  window.clearTimeout(toastTimer);
   toast.textContent = message;
   toast.classList.add("visible");
-  window.setTimeout(() => toast.classList.remove("visible"), 4000);
+  toastTimer = window.setTimeout(() => toast.classList.remove("visible"), 7000);
 }
 
 const topicForm = document.querySelector("#topic-form");
 const topicSubmit = topicForm.querySelector("[type=submit]");
 document.querySelector("#topic-open").addEventListener("click", () => {
   topicForm.reset();
+  document.querySelector("#topic-error").hidden = true;
   topicForm.elements.topic_id.value = "";
   document.querySelector("#topic-dialog-title").textContent = "Novo tema";
   topicSubmit.textContent = "Adicionar tema";
@@ -25,19 +48,21 @@ document.querySelectorAll("[data-close-dialog]").forEach((button) => {
 
 collectButtons.forEach((button) => {
   button.addEventListener("click", async () => {
-    button.disabled = true;
+    collectButtons.forEach((item) => { item.disabled = true; item.setAttribute("aria-busy", "true"); });
     const label = button.querySelector("span");
     const originalLabel = label?.textContent;
     if (label) label.textContent = "Coletando…";
     try {
       const response = await fetch("/api/collect", { method: "POST" });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.detail || "Não foi possível iniciar a coleta.");
-      showToast(`Coleta concluída: ${result.new} novas, ${result.duplicates} duplicadas.`);
+      const result = await readResult(response);
+      if (!['completed', 'completed_with_errors'].includes(result.status)) {
+        throw new Error("A coleta falhou. As publicações existentes foram preservadas. Tente novamente.");
+      }
+      showToast(`Coleta ${result.status === 'completed_with_errors' ? 'com falhas em algumas fontes' : 'concluída'}: ${result.new} novas, ${result.duplicates} duplicadas.`);
       window.setTimeout(() => window.location.reload(), 1400);
     } catch (error) {
       showToast(error.message);
-      button.disabled = false;
+      collectButtons.forEach((item) => { item.disabled = false; item.removeAttribute("aria-busy"); });
       if (label) label.textContent = originalLabel;
     }
   });
@@ -46,6 +71,7 @@ collectButtons.forEach((button) => {
 document.querySelectorAll("[data-edit-topic]").forEach((button) => {
   button.addEventListener("click", () => {
     topicForm.reset();
+    document.querySelector("#topic-error").hidden = true;
     topicForm.elements.topic_id.value = button.dataset.editTopic;
     topicForm.elements.name.value = button.dataset.topicName;
     try {
@@ -64,6 +90,8 @@ document.querySelector("#topic-form").addEventListener("submit", async (event) =
   const form = event.currentTarget;
   const button = form.querySelector("[type=submit]");
   const fields = new FormData(form);
+  const errorOutput = document.querySelector("#topic-error");
+  errorOutput.hidden = true;
   button.disabled = true;
   try {
     const topicId = fields.get("topic_id");
@@ -71,15 +99,15 @@ document.querySelector("#topic-form").addEventListener("submit", async (event) =
       method: topicId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: fields.get("name"),
+        name: fields.get("name").trim(),
         queries: fields.get("queries").split(/\r?\n/).map((query) => query.trim()).filter(Boolean),
       }),
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || "Não foi possível adicionar o tema.");
+    await readResult(response);
     window.location.reload();
   } catch (error) {
-    showToast(error.message);
+    errorOutput.textContent = error.message;
+    errorOutput.hidden = false;
     button.disabled = false;
   }
 });
@@ -142,8 +170,7 @@ document.querySelector("#translate-form").addEventListener("submit", async (even
         target: document.querySelector("#translation-target").value,
       }),
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || "Tradução indisponível.");
+    const result = await readResult(response);
     output.textContent = result.translation;
   } catch (error) {
     output.textContent = error.message;
@@ -163,8 +190,7 @@ document.querySelectorAll("[data-translate-article]").forEach((button) => {
         method: "POST",
         },
       );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.detail || "Tradução indisponível.");
+      const result = await readResult(response);
       window.location.reload();
     } catch (error) {
       showToast(error.message);

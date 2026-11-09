@@ -8,13 +8,14 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
   <header class="topbar">
     <a class="brand" href="/" aria-label="NewsRadar início">
       <span class="brand-mark" aria-hidden="true">N</span>
       <span>News<span class="brand-light">Radar</span></span>
     </a>
     <div class="topbar-meta">
-      <span class="live-indicator"><i></i> Radar ativo</span>
+      <span class="live-indicator"><i></i> Acervo local</span>
       <span class="topbar-count">{{ total_articles }} artigos</span>
       <label class="translation-target-control" title="Idioma das traduções">
         <span class="sr-only">Idioma da tradução</span>
@@ -28,7 +29,7 @@
     </div>
   </header>
 
-  <main class="page-shell">
+  <main class="page-shell" id="main-content" tabindex="-1">
     <section class="page-heading">
       <div>
         <p class="eyebrow">SEU PAINEL DE INFORMAÇÃO</p>
@@ -36,11 +37,13 @@
         <p class="heading-note">Sinais relevantes, reunidos de fontes independentes.</p>
       </div>
       <div class="heading-status">
-        <span class="status-label">IA pendente</span>
+        <span class="status-label">Artigos aguardando IA</span>
         <strong>{{ pending_ai }}</strong>
       </div>
     </section>
 
+    <section class="workspace" aria-labelledby="workspace-title">
+    <div class="workspace-heading"><h2 id="workspace-title">Explore seu radar</h2><span>Temas, fontes e arquivo em um só lugar</span></div>
     <nav class="topic-nav" aria-label="Filtrar por tema">
       <a class="topic-link {% if not selected_topic %}active{% endif %}" href="/?view={{ view }}{% if selected_kind %}&kind={{ selected_kind }}{% endif %}">Todas</a>
       {% for topic in topics %}
@@ -105,6 +108,7 @@
       </label>
       <button class="apply-button" type="submit">Filtrar</button>
     </form>
+    </section>
 
     {% if view == 'latest' and highlights %}
     <section class="highlights-section" aria-labelledby="highlights-heading">
@@ -213,7 +217,7 @@
       <div class="empty-state">
         <span class="empty-mark" aria-hidden="true">N</span>
         <h3>Nenhuma notícia por aqui ainda</h3>
-        <p>Confira os temas em <code>config.yaml</code> e as fontes em <code>sources.yaml</code>, depois inicie uma coleta.</p>
+        <p>Experimente outros filtros ou adicione um tema no botão “+ Tema”. Inicie uma coleta para buscar novas publicações.</p>
         <button class="collect-button" type="button" data-collect>↻ <span>Iniciar coleta</span></button>
       </div>
       {% endif %}
@@ -227,7 +231,8 @@
       <input type="hidden" name="topic_id">
       <label>Nome do tema<input name="name" required minlength="2" maxlength="60" placeholder="Ex.: computação quântica"></label>
       <label>Termos de busca, um por linha<textarea name="queries" maxlength="1200" rows="4" placeholder="quantum computing&#10;computação quântica&#10;quantum research"></textarea></label>
-      <p class="dialog-note">As consultas também buscam notícias e estudos científicos relacionados.</p>
+      <p class="dialog-note">Até 8 consultas de 160 caracteres. Sem consultas, usamos o nome do tema. A busca inclui notícias e estudos científicos.</p>
+      <p class="form-error" id="topic-error" role="alert" hidden></p>
       <button class="collect-button" type="submit">Adicionar tema</button>
     </form>
   </dialog>

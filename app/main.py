@@ -85,8 +85,11 @@ templates = Jinja2Templates(directory=ROOT_DIR / "app" / "templates")
 @app.middleware("http")
 async def harden_response(request: Request, call_next):
     content_length = request.headers.get("content-length")
-    if content_length and content_length.isdigit() and int(content_length) > get_settings().max_request_body_bytes:
-        return JSONResponse({"detail": "request body is too large"}, status_code=413)
+    if content_length:
+        if not content_length.isascii() or not content_length.isdecimal():
+            return JSONResponse({"detail": "invalid content-length"}, status_code=400)
+        if len(content_length) > 20 or int(content_length) > get_settings().max_request_body_bytes:
+            return JSONResponse({"detail": "request body is too large"}, status_code=413)
     settings = get_settings()
     # Access validation is optional until the owner supplies their team domain and app audience.
     if (settings.cf_access_audience or settings.cf_access_team_domain) and request.url.path != "/health":

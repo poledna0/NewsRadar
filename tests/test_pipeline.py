@@ -86,3 +86,22 @@ async def test_inference_failure_stops_batch_without_losing_pending(engine, monk
         assert await pipeline._process_pending(session, {}, limit=3) == 0
         assert calls == 1
         assert len(session.scalars(select(Article.id).where(Article.processing_status == 'pending_ai')).all()) == 3
+
+
+@pytest.mark.asyncio
+async def test_invalid_model_result_does_not_block_other_articles(engine, monkeypatch):
+    calls = 0
+    async def process(_article, _topics):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise ValueError('malformed model JSON')
+        return {'relevance_score': 50, 'topics': []}, 'New summary', None
+    monkeypatch.setattr(pipeline, 'process_article', process)
+    with Session(engine, expire_on_commit=False) as session:
+        add_article(session, 0, translation_pt='Stale translation')
+        add_article(session, 1)
+        assert await pipeline._process_pending(session, {}, limit=2) == 1
+        assert calls == 2
+        article = session.scalar(select(Article).where(Article.processing_status == 'processed'))
+        assert article.translation_pt is None

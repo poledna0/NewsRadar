@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
+import httpx
 from dateutil import parser as date_parser
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -169,6 +170,7 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
         title=(extracted.get("title") or item.get("title") or "").strip(),
         source_name=item.get("source_name") or domain,
         source_domain=domain,
+        author=extracted.get("author"),
         published_at=_parse_datetime(extracted.get("published_at")) or published_at,
         discovered_at=utc_now(),
         content=extracted.get("content"),
@@ -212,6 +214,9 @@ async def _process_pending(session: Session, topic_by_name: dict[str, Topic], li
             article.relevance_score = classification["relevance_score"]
             article.category = classification.get("category") or "Geral"
             article.article_type = classification.get("article_type", "news")
+            if article.summary != summary or (consolidated_title and article.title != consolidated_title):
+                article.translation_pt = None
+                article.translation_en = None
             article.summary = summary
             if consolidated_title:
                 article.title = consolidated_title
@@ -228,10 +233,13 @@ async def _process_pending(session: Session, topic_by_name: dict[str, Topic], li
                 session.commit()
             logger.warning("AI processing unavailable for article %s: %s", article_id, error)
             # A failed backend must not cause a timeout for every queued article.
-            break
+            if isinstance(error, (httpx.HTTPError, TimeoutError, OSError)):
+                break
         finally:
             if article is not None and article in session:
                 session.expunge(article)
+            payload.clear()
+            article = None
     return processed
 
 

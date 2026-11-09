@@ -14,12 +14,13 @@ class BodyLimitMiddleware:
             message = await receive()
             if message['type'] == 'http.disconnect':
                 return
-            body.extend(message.get('body', b''))
-            if len(body) > self.max_bytes:
+            chunk = message.get('body', b'')
+            if len(body) + len(chunk) > self.max_bytes:
                 await send({'type': 'http.response.start', 'status': 413,
                             'headers': [(b'content-type', b'application/json'), (b'connection', b'close')]})
                 await send({'type': 'http.response.body', 'body': b'{"detail":"request body is too large"}'})
                 return
+            body.extend(chunk)
             if not message.get('more_body', False):
                 break
         delivered = False

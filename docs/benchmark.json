@@ -97,15 +97,5 @@
       "python_peak_mib": 0.035531044006347656,
       "rss_peak_mib": 21.5078125
     }
-  },
-  "static_assets": {
-    "before": {
-      "raw_bytes": 24086,
-      "gzip_bytes": 6042
-    },
-    "after": {
-      "raw_bytes": 21177,
-      "gzip_bytes": 5795
-    }
   }
 }

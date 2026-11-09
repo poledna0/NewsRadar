@@ -41,7 +41,7 @@ Tests should be deterministic: mock HTTP, SearXNG, and Ollama instead of relying
 
 ## Review
 
-PRs are reviewed for security, self-hosting compatibility, readability, testing, and data preservation. A contribution may be requested to be split into smaller changes before it is accepted. 
+PRs are reviewed for security, self-hosting compatibility, readability, testing, and data preservation. A contribution may be requested to be split into smaller changes before it is accepted.
 
 See [architecture](docs/ARQUITETURA.md), [operations](docs/OPERACAO.md) and
 [validation limitations](docs/RELATORIO.md). Offline checks: `python -m unittest discover -s tests -p test_core_unittest.py`;

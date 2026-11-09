@@ -48,6 +48,7 @@ reproduzindo ambos os padrões em condições equivalentes. Não se apresenta is
 | CSS + JS, bytes gzip calculados offline | 6.042 | 5.795 |
 
 As últimas duas linhas comparam arquivos reais do commit original com os alterados, não o experimento SQLite.
+O registro separado está em [assets.json](assets.json).
 Gzip é apenas medida de compressibilidade; a aplicação não configura compressão HTTP automaticamente.
 A extração de conteúdo e a complexidade da comparação fuzzy não são aceleradas por esse benchmark.
 O banco real pode ter tamanhos, cache de SO e distribuição de títulos muito diferentes.

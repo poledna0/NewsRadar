@@ -1,0 +1,18 @@
+{
+  "scope": "CSS and JS file sizes; gzip calculated offline, not HTTP transport",
+  "baseline_commit": "527082c",
+  "files": [
+    "app/static/styles.css",
+    "app/static/app.js"
+  ],
+  "sizes": {
+    "before": {
+      "raw_bytes": 24086,
+      "gzip_bytes": 6042
+    },
+    "after": {
+      "raw_bytes": 21177,
+      "gzip_bytes": 5795
+    }
+  }
+}

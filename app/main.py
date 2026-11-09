@@ -14,10 +14,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select, text
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, defer
 
 from app.config import ROOT_DIR, get_settings
 from app.database import SessionLocal, engine, ensure_schema, get_db
+from app.middleware import BodyLimitMiddleware
 from app.models import Article, ProcessingRun, Source, Topic
 from app.schemas import (
     ArticleListOut,
@@ -64,13 +65,18 @@ async def lifespan(_: FastAPI):
         coalesce=True,
     )
     scheduler.start()
-    if get_settings().collect_on_start:
-        asyncio.create_task(collect_news())
-    yield
-    scheduler.shutdown(wait=False)
+    startup_task = asyncio.create_task(collect_news()) if get_settings().collect_on_start else None
+    try:
+        yield
+    finally:
+        scheduler.shutdown(wait=False)
+        if startup_task is not None:
+            startup_task.cancel()
+            await asyncio.gather(startup_task, return_exceptions=True)
 
 
 app = FastAPI(title="NewsRadar", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.add_middleware(BodyLimitMiddleware, max_bytes=get_settings().max_request_body_bytes)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=get_settings().allowed_host_list)
 app.mount("/static", StaticFiles(directory=ROOT_DIR / "app" / "static"), name="static")
 templates = Jinja2Templates(directory=ROOT_DIR / "app" / "templates")
@@ -173,7 +179,7 @@ def article_query(
     article_type: str | None = None,
     published_day: str | None = None,
 ):
-    query = select(Article).options(selectinload(Article.topics))
+    query = select(Article).options(selectinload(Article.topics), defer(Article.content))
     if topic:
         query = query.join(Article.topics).where(Topic.name == topic)
     if hours:
@@ -241,7 +247,7 @@ def list_articles(
 
 @app.get("/api/articles/{article_id}", response_model=ArticleOut)
 def get_article(article_id: int, session: Session = Depends(get_db)):
-    article = session.scalar(select(Article).options(selectinload(Article.topics)).where(Article.id == article_id))
+    article = session.scalar(select(Article).options(selectinload(Article.topics), defer(Article.content)).where(Article.id == article_id))
     if article is None:
         raise HTTPException(status_code=404, detail="article not found")
     if is_excluded_domain(article.source_domain, get_settings().excluded_domain_list):

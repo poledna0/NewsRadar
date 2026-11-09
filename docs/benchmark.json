@@ -1,0 +1,101 @@
+{
+  "scope": "SQLite read path only; no SQLAlchemy, HTTP, LLM or CT execution",
+  "python": "3.14.4",
+  "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.43",
+  "rows": 1500,
+  "body_bytes_per_row": 40960,
+  "repeats": 5,
+  "method": "Same DB, index and sort; fresh alternating subprocesses; medians; Linux ru_maxrss",
+  "samples": {
+    "before": [
+      {
+        "rows": 1500,
+        "wall_ms": 106.64250299998912,
+        "cpu_ms": 106.656425,
+        "python_peak_mib": 59.03273963928223,
+        "rss_peak_mib": 81.328125
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 103.32810600004905,
+        "cpu_ms": 103.257008,
+        "python_peak_mib": 59.03273963928223,
+        "rss_peak_mib": 81.296875
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 58.47294400007286,
+        "cpu_ms": 58.466845000000006,
+        "python_peak_mib": 59.03273963928223,
+        "rss_peak_mib": 81.3125
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 57.22224900000583,
+        "cpu_ms": 57.233292,
+        "python_peak_mib": 59.03273963928223,
+        "rss_peak_mib": 81.3046875
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 57.54631399997834,
+        "cpu_ms": 57.545064,
+        "python_peak_mib": 59.03273963928223,
+        "rss_peak_mib": 81.28125
+      }
+    ],
+    "after": [
+      {
+        "rows": 1500,
+        "wall_ms": 6.017612999926314,
+        "cpu_ms": 6.029025000000007,
+        "python_peak_mib": 0.035531044006347656,
+        "rss_peak_mib": 21.5078125
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 5.272671999932754,
+        "cpu_ms": 5.280988000000001,
+        "python_peak_mib": 0.035531044006347656,
+        "rss_peak_mib": 21.5078125
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 3.029084999980114,
+        "cpu_ms": 3.034975999999995,
+        "python_peak_mib": 0.035531044006347656,
+        "rss_peak_mib": 21.5078125
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 3.1349619999900824,
+        "cpu_ms": 3.1450010000000015,
+        "python_peak_mib": 0.035531044006347656,
+        "rss_peak_mib": 21.5078125
+      },
+      {
+        "rows": 1500,
+        "wall_ms": 3.048350999961258,
+        "cpu_ms": 3.0547320000000044,
+        "python_peak_mib": 0.035531044006347656,
+        "rss_peak_mib": 21.5078125
+      }
+    ]
+  },
+  "median": {
+    "before": {
+      "rows": 1500,
+      "wall_ms": 58.47294400007286,
+      "cpu_ms": 58.466845000000006,
+      "python_peak_mib": 59.03273963928223,
+      "rss_peak_mib": 81.3046875
+    },
+    "after": {
+      "rows": 1500,
+      "wall_ms": 3.1349619999900824,
+      "cpu_ms": 3.1450010000000015,
+      "python_peak_mib": 0.035531044006347656,
+      "rss_peak_mib": 21.5078125
+    }
+  }
+}

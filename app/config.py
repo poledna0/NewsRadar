@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     searxng_url: str = "http://localhost:8080"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:9b"
+    ollama_keep_alive: str = "60s"
     collection_interval_minutes: int = Field(default=30, ge=5)
     max_results_per_query: int = Field(default=10, ge=1, le=50)
     max_results_per_feed: int = Field(default=20, ge=1, le=100)

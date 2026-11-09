@@ -242,3 +242,26 @@ async def test_feed_audit_isolates_one_unavailable_source(monkeypatch):
     )
     results = await feed_audit.audit_feeds()
     assert [result[1] for result in results] == ["ok", "unavailable (HTTP 404)"]
+
+@pytest.mark.asyncio
+async def test_robots_cache_is_bounded_and_expires(monkeypatch):
+    from app.services import extractor
+    monkeypatch.setattr(extractor, '_robots_cache', __import__('collections').OrderedDict())
+    monkeypatch.setattr(extractor, '_ROBOTS_MAX_ENTRIES', 2)
+    clock = [100.0]
+    monkeypatch.setattr(extractor.time, 'monotonic', lambda: clock[0])
+    calls = []
+    async def response(url):
+        calls.append(url)
+        return SimpleNamespace(text='User-agent: *\nAllow: /')
+    monkeypatch.setattr(extractor, 'get_public_response', response)
+    monkeypatch.setattr(extractor.get_settings(), 'respect_robots_txt', True)
+    for host in ['one', 'two', 'three']:
+        assert await extractor._robots_allowed(f'https://{host}.example/article')
+    assert len(extractor._robots_cache) == 2
+    assert 'https://one.example' not in extractor._robots_cache
+    assert await extractor._robots_allowed('https://three.example/article')
+    assert len(calls) == 3
+    clock[0] += 3601
+    assert await extractor._robots_allowed('https://three.example/article')
+    assert len(calls) == 4

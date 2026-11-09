@@ -113,6 +113,7 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
     existing = session.scalar(select(Article).where(Article.canonical_url == canonical_url))
     if existing:
         _attach_topics(existing, item.get("topic_names", []), topic_by_name)
+        session.commit()
         counters["duplicates"] += 1
         return
 
@@ -122,12 +123,18 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
         return
     counters["discovered"] += 1
     # Compare recent titles only after canonical-URL deduplication, and never merge a paper into its news coverage.
-    candidates = session.scalars(
-        select(Article).where(Article.discovered_at >= utc_now() - timedelta(days=3)).order_by(Article.discovered_at.desc())
-    ).all()
-    duplicate = find_title_duplicate(item.get("title", ""), candidates)
-    if duplicate and duplicate.article_type != article_type:
-        duplicate = None
+    # Stream only IDs and titles: article bodies/translations are irrelevant here.
+    candidates = session.execute(
+        select(Article.id, Article.title)
+        .where(Article.discovered_at >= utc_now() - timedelta(days=3), Article.article_type == article_type)
+        .order_by(Article.discovered_at.desc(), Article.id.desc())
+        .execution_options(yield_per=128)
+    )
+    try:
+        match = find_title_duplicate(item.get("title", ""), candidates)
+    finally:
+        candidates.close()
+    duplicate = session.get(Article, match.id) if match else None
     if duplicate:
         sources = list(duplicate.related_sources or [])
         known_urls = {source.get("url") for source in sources}
@@ -150,6 +157,7 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
         duplicate.related_sources = sources
         duplicate.processing_status = "pending_ai"
         _attach_topics(duplicate, item.get("topic_names", []), topic_by_name)
+        session.commit()
         counters["duplicates"] += 1
         logger.info("Grouped similar headline from %s under article %s", domain, duplicate.id)
         return
@@ -179,12 +187,17 @@ async def _ingest(session: Session, item: dict, run: ProcessingRun, topic_by_nam
 
 async def _process_pending(session: Session, topic_by_name: dict[str, Topic], limit: int | None = None) -> int:
     limit = limit or get_settings().ai_articles_per_run
-    pending = session.scalars(
-        select(Article).where(Article.processing_status == "pending_ai").order_by(Article.discovered_at.desc()).limit(limit)
+    # Keep only a bounded ID snapshot; fetch one full document at a time.
+    pending_ids = session.scalars(
+        select(Article.id).where(Article.processing_status == "pending_ai")
+        .order_by(Article.discovered_at.desc(), Article.id.desc()).limit(limit)
     ).all()
     topic_names = list(topic_by_name)
     processed = 0
-    for article in pending:
+    for article_id in pending_ids:
+        article = session.get(Article, article_id)
+        if article is None or article.processing_status != "pending_ai":
+            continue
         payload = {
             "title": article.title,
             "source_name": article.source_name,
@@ -209,11 +222,16 @@ async def _process_pending(session: Session, topic_by_name: dict[str, Topic], li
         except Exception as error:
             # Keep collected content available and retry it in a later cycle if Ollama is unavailable.
             session.rollback()
-            article = session.get(Article, article.id)
+            article = session.get(Article, article_id)
             if article:
                 article.processing_status = "pending_ai"
                 session.commit()
-            logger.warning("AI processing unavailable for article %s: %s", article.id, error)
+            logger.warning("AI processing unavailable for article %s: %s", article_id, error)
+            # A failed backend must not cause a timeout for every queued article.
+            break
+        finally:
+            if article is not None and article in session:
+                session.expunge(article)
     return processed
 
 
@@ -294,7 +312,7 @@ async def collect_news() -> dict:
             run.details = json.dumps({**counters, "ai_processed": processed_count})
             logger.info(
                 "Collection finished: %s discovered, %s new, %s duplicates, %s sent to Ollama",
-                counters["discovered"], counters["new"], processed_count, counters["duplicates"],
+                counters["discovered"], counters["new"], counters["duplicates"], processed_count,
             )
         except Exception as error:
             session.rollback()

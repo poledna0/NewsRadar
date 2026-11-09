@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import get_settings
@@ -17,7 +17,15 @@ def _make_engine():
         database_path = url.removeprefix("sqlite:///").split("?", 1)[0]
         if not database_path.startswith("/"):
             Path(database_path).parent.mkdir(parents=True, exist_ok=True)
-    return create_engine(url, connect_args=connect_args, pool_pre_ping=True)
+    target = create_engine(url, connect_args=connect_args, pool_pre_ping=True)
+    if url.startswith("sqlite"):
+        @event.listens_for(target, "connect")
+        def configure_sqlite(connection, _record):
+            cursor = connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.close()
+    return target
 
 
 engine = _make_engine()
@@ -47,9 +55,12 @@ def ensure_schema(target_engine=engine) -> None:
                     connection.exec_driver_sql(
                         f"ALTER TABLE {table_name} ADD COLUMN {column_name} {declaration}"
                     )
-        connection.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_articles_article_type ON articles(article_type)"
-        )
+        for statement in (
+            "CREATE INDEX IF NOT EXISTS ix_articles_article_type ON articles(article_type)",
+            "CREATE INDEX IF NOT EXISTS ix_articles_discovered_at ON articles(discovered_at)",
+            "CREATE INDEX IF NOT EXISTS ix_articles_pending_date ON articles(processing_status, discovered_at, id)",
+        ):
+            connection.exec_driver_sql(statement)
 
 
 def get_db():

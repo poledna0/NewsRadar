@@ -15,6 +15,7 @@ from app.models import Article, Topic
 
 @pytest.fixture
 def client(monkeypatch):
+    monkeypatch.setattr(main, "_rate_windows", {})
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
 
@@ -237,3 +238,33 @@ def test_cloudflare_jwt_is_required_when_access_is_configured(client, monkeypatc
 def test_unknown_host_is_rejected(client):
     response = client.get("/", headers={"Host": "attacker.example"})
     assert response.status_code == 400
+
+
+def test_blank_translation_is_rejected(client):
+    assert client.post("/api/translate", json={"text": "   "}).status_code == 422
+
+
+def test_long_search_query_is_rejected(client):
+    response = client.post("/api/topics", json={"name": "Linux", "queries": ["x" * 161]})
+    assert response.status_code == 422
+
+
+def test_list_queries_do_not_fetch_article_content(client):
+    from sqlalchemy import event
+    statements = []
+    def capture(_conn, _cursor, statement, _params, _context, _many):
+        statements.append(statement)
+    with Session(client.app.state.test_engine) as session:
+        session.add(Article(url="https://example.org/large", canonical_url="https://example.org/large",
+                            title="Large article", content="x" * 100000))
+        session.commit()
+    event.listen(client.app.state.test_engine, "before_cursor_execute", capture)
+    try:
+        assert client.get("/api/articles").status_code == 200
+        assert client.get("/?day=all").status_code == 200
+    finally:
+        event.remove(client.app.state.test_engine, "before_cursor_execute", capture)
+    # Count subqueries may mention the column; document retrieval must not select it.
+    retrievals = [sql for sql in statements if sql.startswith("SELECT articles.id")]
+    assert retrievals
+    assert all("articles.content" not in sql for sql in retrievals)

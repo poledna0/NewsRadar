@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -8,7 +9,19 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+# A single inference request at a time, with a bounded wait for interactive calls.
+_inference_lock = asyncio.Lock()
+
+
 async def _generate(prompt: str) -> str:
+    await asyncio.wait_for(_inference_lock.acquire(), timeout=2)
+    try:
+        return await _generate_unlocked(prompt)
+    finally:
+        _inference_lock.release()
+
+
+async def _generate_unlocked(prompt: str) -> str:
     settings = get_settings()
     async with httpx.AsyncClient(timeout=httpx.Timeout(settings.request_timeout_seconds * 4), trust_env=False) as client:
         response = await client.post(
@@ -19,6 +32,7 @@ async def _generate(prompt: str) -> str:
                 "stream": False,
                 "format": "json",
                 "think": False,
+                "keep_alive": settings.ollama_keep_alive,
                 "options": {"temperature": 0.1},
             },
         )
